@@ -754,7 +754,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
                       <div className="lg:col-span-1">
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
                         <select className="w-full border rounded p-2 bg-white" value={qType} onChange={(e) => setQType(e.target.value)}>
-                          {availableQTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                          {Array.isArray(availableQTypes) && availableQTypes.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                       </div>
                       <div className="grid grid-cols-2 gap-3 lg:col-span-2">

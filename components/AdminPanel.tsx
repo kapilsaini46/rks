@@ -375,8 +375,8 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={`pb-2 px-4 font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
-                ? 'border-b-2 border-purple-600 text-purple-600'
-                : 'text-gray-500 hover:text-gray-700'
+              ? 'border-b-2 border-purple-600 text-purple-600'
+              : 'text-gray-500 hover:text-gray-700'
               }`}
           >
             {tab.label}
@@ -414,7 +414,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                       </td>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded text-xs whitespace-nowrap ${req.status === SubscriptionStatus.PENDING ? 'bg-yellow-100 text-yellow-800' :
-                            req.status === SubscriptionStatus.ACTIVE ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          req.status === SubscriptionStatus.ACTIVE ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                           }`}>
                           {req.status}
                         </span>
@@ -569,8 +569,8 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                     value={patternClass}
                     onChange={(e) => setPatternClass(e.target.value)}
                   >
-                    {classList.length === 0 && <option>No classes found</option>}
-                    {classList.map(c => <option key={c} value={c}>{c}</option>)}
+                    {(!Array.isArray(classList) || classList.length === 0) && <option>No classes found</option>}
+                    {Array.isArray(classList) && classList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
@@ -580,8 +580,8 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                     value={patternSubject}
                     onChange={(e) => setPatternSubject(e.target.value)}
                   >
-                    {!patternClass || !curriculumConfig[patternClass] || curriculumConfig[patternClass].length === 0 ? <option>No subjects found</option> : null}
-                    {patternClass && curriculumConfig[patternClass]?.map(s => <option key={s} value={s}>{s}</option>)}
+                    {!patternClass || !curriculumConfig[patternClass] || !Array.isArray(curriculumConfig[patternClass]) || curriculumConfig[patternClass].length === 0 ? <option>No subjects found</option> : null}
+                    {patternClass && Array.isArray(curriculumConfig[patternClass]) && curriculumConfig[patternClass].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
@@ -694,7 +694,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                 </button>
               </div>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {classList.map(cls => (
+                {Array.isArray(classList) && classList.map(cls => (
                   <div key={cls} className={`flex justify-between items-center p-3 rounded border cursor-pointer ${selectedCurriculumClass === cls ? 'bg-blue-100 border-blue-400' : 'bg-white'}`} onClick={() => setSelectedCurriculumClass(cls)}>
                     <span className="font-medium">{cls}</span>
                     <button onClick={(e) => { e.stopPropagation(); handleDeleteClass(cls); }} className="text-red-400 hover:text-red-600">
@@ -730,7 +730,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                     </button>
                   </div>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {curriculumConfig[selectedCurriculumClass]?.map(sub => (
+                    {Array.isArray(curriculumConfig[selectedCurriculumClass]) && curriculumConfig[selectedCurriculumClass].map(sub => (
                       <div key={sub} className="flex justify-between items-center p-3 rounded border bg-white">
                         <span>{sub}</span>
                         <button onClick={() => handleDeleteSubject(sub)} className="text-red-400 hover:text-red-600">
@@ -738,7 +738,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                         </button>
                       </div>
                     ))}
-                    {(!curriculumConfig[selectedCurriculumClass] || curriculumConfig[selectedCurriculumClass].length === 0) && (
+                    {(!curriculumConfig[selectedCurriculumClass] || !Array.isArray(curriculumConfig[selectedCurriculumClass]) || curriculumConfig[selectedCurriculumClass].length === 0) && (
                       <p className="text-gray-400 text-sm text-center">No subjects added yet.</p>
                     )}
                   </div>
@@ -765,7 +765,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                 </button>
               </div>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {questionTypes.map(type => (
+                {Array.isArray(questionTypes) && questionTypes.map(type => (
                   <div key={type} className="flex justify-between items-center p-3 rounded border bg-white">
                     <span>{type}</span>
                     <button onClick={() => handleDeleteQType(type)} className="text-red-400 hover:text-red-600">
