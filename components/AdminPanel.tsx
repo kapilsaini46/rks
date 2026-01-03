@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
 import { PaymentRequest, User, QuestionPaper, SubscriptionStatus, UserRole, SubscriptionPlan, ContentPage } from '../types';
 import PaperGenerator from './PaperGenerator';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface Props {
   user: User;
@@ -338,12 +339,14 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
 
   if (view === 'create' || selectedPaper) {
     return (
-      <PaperGenerator
-        userEmail={user.email}
-        existingPaper={selectedPaper || undefined}
-        onClose={() => { setView('dashboard'); setSelectedPaper(null); }}
-        onSuccess={() => { setView('dashboard'); setSelectedPaper(null); refreshData(); }}
-      />
+      <ErrorBoundary>
+        <PaperGenerator
+          userEmail={user.email}
+          existingPaper={selectedPaper || undefined}
+          onClose={() => { setView('dashboard'); setSelectedPaper(null); }}
+          onSuccess={() => { setView('dashboard'); setSelectedPaper(null); refreshData(); }}
+        />
+      </ErrorBoundary>
     );
   }
 

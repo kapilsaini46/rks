@@ -204,7 +204,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   useEffect(() => {
     if (meta.classNum && curriculumConfig[meta.classNum]) {
       const subjects = curriculumConfig[meta.classNum];
-      if (!subjects.includes(meta.subject) && subjects.length > 0) {
+      if (Array.isArray(subjects) && !subjects.includes(meta.subject) && subjects.length > 0) {
         setMeta(prev => ({ ...prev, subject: subjects[0] }));
       }
     }
