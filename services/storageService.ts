@@ -78,7 +78,10 @@ export const StorageService = {
     if (isMock) return Object.values(QuestionType);
     const docRef = doc(db, CONFIG_COL, 'qtypes');
     const snap = await getDoc(docRef);
-    if (snap.exists()) return snap.data().types;
+    if (snap.exists()) {
+      const data = snap.data();
+      return Array.isArray(data?.types) ? data.types : Object.values(QuestionType);
+    }
 
     // Default
     const defaultTypes = Object.values(QuestionType);
@@ -104,7 +107,10 @@ export const StorageService = {
     if (isMock) return CBSE_SUBJECTS;
     const docRef = doc(db, CONFIG_COL, 'curriculum');
     const snap = await getDoc(docRef);
-    if (snap.exists()) return snap.data() as Record<string, string[]>;
+    if (snap.exists()) {
+      const data = snap.data();
+      return data ? (data as Record<string, string[]>) : CBSE_SUBJECTS;
+    }
 
     // Default
     await setDoc(docRef, CBSE_SUBJECTS);
