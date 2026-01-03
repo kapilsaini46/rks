@@ -716,15 +716,15 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
                   <div>
                     <label className="block text-sm font-medium mb-1">Class</label>
                     <select disabled={readOnly} className="w-full border rounded p-2" value={meta.classNum} onChange={(e) => setMeta({ ...meta, classNum: e.target.value })}>
-                      {classList.length === 0 && <option>No classes available</option>}
-                      {classList.map(c => <option key={c} value={c}>{c}</option>)}
+                      {(!Array.isArray(classList) || classList.length === 0) && <option>No classes available</option>}
+                      {Array.isArray(classList) && classList.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Subject</label>
                     <select disabled={readOnly} className="w-full border rounded p-2" value={meta.subject} onChange={(e) => setMeta({ ...meta, subject: e.target.value })}>
-                      {!meta.classNum || !curriculumConfig[meta.classNum] || curriculumConfig[meta.classNum].length === 0 ? <option>No subjects available</option> : null}
-                      {meta.classNum && curriculumConfig[meta.classNum]?.map(s => <option key={s} value={s}>{s}</option>)}
+                      {!meta.classNum || !curriculumConfig[meta.classNum] || !Array.isArray(curriculumConfig[meta.classNum]) || curriculumConfig[meta.classNum].length === 0 ? <option>No subjects available</option> : null}
+                      {meta.classNum && Array.isArray(curriculumConfig[meta.classNum]) && curriculumConfig[meta.classNum].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div><label className="block text-sm font-medium mb-1">Session</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.session} onChange={e => setMeta({ ...meta, session: e.target.value })} /></div>
