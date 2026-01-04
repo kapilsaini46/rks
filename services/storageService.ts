@@ -341,6 +341,47 @@ export const StorageService = {
   },
 
   // --- Subscriptions ---
+  async recordSubscriptionPayment(user: User, plan: SubscriptionPlan, paymentId: string, amount: number) {
+    try {
+      // 1. Update User Status
+      const userRef = doc(db, USERS_COL, user.email);
+      const now = new Date();
+      const nowIso = now.toISOString();
+
+      // Calculate expiry (30 days from now for ease, or dependent on plan duration)
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30);
+
+      const updatedUser: Partial<User> = {
+        subscriptionPlan: plan,
+        subscriptionStatus: SubscriptionStatus.ACTIVE,
+        // Reset credits based on plan
+        credits: PRICING[plan].papers,
+        subscriptionExpiryDate: expiryDate.toISOString()
+      };
+      await updateDoc(userRef, updatedUser);
+
+      // 2. Record Transaction in Requests (for Admin Revenue)
+      // We start ID with 'pay_' to distinguish from manual requests
+      const reqId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const request: PaymentRequest = {
+        id: reqId,
+        userEmail: user.email,
+        plan: plan,
+        amount: amount,
+        proofUrl: paymentId, // Storing Payment ID in proofUrl field for reference
+        status: SubscriptionStatus.ACTIVE,
+        date: nowIso
+      };
+      await setDoc(doc(db, REQUESTS_COL, reqId), request);
+
+      return true;
+    } catch (error) {
+      console.error("Error recording payment:", error);
+      throw error;
+    }
+  },
+
   createPaymentRequest: async (email: string, plan: SubscriptionPlan, proofUrl: string) => {
     if (isMock) {
       console.log("Mock create payment request", { email, plan, proofUrl });

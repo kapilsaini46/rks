@@ -26,5 +26,8 @@ export const PRICING = {
 
 export const UPI_QR_IMAGE = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=mock-merchant@upi&pn=CBSEGenerator&am=0&cu=INR";
 
+// Razorpay Key
+export const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
+
 export const MOCK_ADMIN_EMAIL = "admin@cbse.com";
 export const MOCK_TEACHER_EMAIL = "teacher@cbse.com";

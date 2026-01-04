@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { PRICING, UPI_QR_IMAGE } from '../constants';
+import useRazorpay from "react-razorpay";
+import { PRICING, RAZORPAY_KEY_ID, APP_NAME } from '../constants';
 import { StorageService } from '../services/storageService';
 import { User, SubscriptionPlan } from '../types';
 
@@ -10,42 +11,76 @@ interface Props {
   onSuccess: () => void;
 }
 
-// Helper component for Razorpay Button
-const RazorpayButton = ({ paymentButtonId }: { paymentButtonId: string }) => {
-  const formRef = React.useRef<HTMLFormElement>(null);
-
-  React.useEffect(() => {
-    // Clear previous scripts if any inside this container to avoid duplicates if re-rendered
-    if (formRef.current) {
-      formRef.current.innerHTML = '';
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/payment-button.js";
-    script.setAttribute("data-payment_button_id", paymentButtonId);
-    script.async = true;
-
-    if (formRef.current) {
-      formRef.current.appendChild(script);
-    }
-  }, [paymentButtonId]);
-
-  return <form ref={formRef}></form>;
-};
-
 const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(SubscriptionPlan.PROFESSIONAL);
+  const [loading, setLoading] = useState(false);
+  const [Razorpay] = useRazorpay();
 
-  const getButtonId = (plan: SubscriptionPlan) => {
-    switch (plan) {
-      case SubscriptionPlan.STARTER: return 'pl_RtXC8qnF4cC8u3';
-      case SubscriptionPlan.PROFESSIONAL: return 'pl_RtXNnM8pojWMWw';
-      case SubscriptionPlan.PREMIUM: return 'pl_RtXQ5JOdVYRknI';
-      default: return '';
+  const handlePayment = async () => {
+    if (!RAZORPAY_KEY_ID) {
+      alert("Razorpay Key ID is missing. Please check your configuration.");
+      return;
     }
+
+    const amount = PRICING[selectedPlan].price;
+    if (amount === 0) {
+      // Handle Free Plan if needed, or just select
+      onSuccess();
+      return;
+    }
+
+    setLoading(true);
+
+    const options = {
+      key: RAZORPAY_KEY_ID,
+      amount: amount * 100, // Amount in paise
+      currency: "INR",
+      name: APP_NAME,
+      description: `Upgrade to ${PRICING[selectedPlan].label}`,
+      image: "https://example.com/your_logo", // You can add a logo URL here
+      handler: async (response: any) => {
+        try {
+          console.log("Payment Success:", response);
+          // Update Backend
+          await StorageService.recordSubscriptionPayment(
+            user,
+            selectedPlan,
+            response.razorpay_payment_id,
+            amount
+          );
+          alert("Payment Successful! Plan Upgraded.");
+          onSuccess(); // Triggers refresh in App.tsx
+        } catch (error) {
+          console.error("Payment verification failed:", error);
+          alert("Payment Successful but update failed. Please contact support.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      prefill: {
+        name: user.name,
+        email: user.email,
+        contact: user.mobile || "",
+      },
+      theme: {
+        color: "#3399cc",
+      },
+      modal: {
+        ondismiss: () => {
+          setLoading(false);
+        }
+      }
+    };
+
+    const rzp1 = new Razorpay(options);
+    rzp1.on("payment.failed", function (response: any) {
+      alert(response.error.description);
+      setLoading(false);
+    });
+
+    rzp1.open();
   };
 
-  const buttonId = getButtonId(selectedPlan);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -74,18 +109,24 @@ const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
           </div>
 
           <div className="flex flex-col items-center justify-center py-4 border-t">
-            {buttonId ? (
-              <div key={buttonId}>
-                {/* Key property forces re-mount of component when buttonID changes, ensuring script re-runs */}
-                <RazorpayButton paymentButtonId={buttonId} />
-              </div>
-            ) : (
-              <p className="text-red-500">Select a valid plan to pay.</p>
-            )}
+            <button
+              onClick={handlePayment}
+              disabled={loading}
+              className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition-colors flex justify-center items-center gap-2"
+            >
+              {loading ? (
+                <>Processing...</>
+              ) : (
+                <>
+                  <span>Pay Now</span>
+                  <span className="bg-white text-green-600 px-2 py-0.5 rounded text-sm">₹{PRICING[selectedPlan].price}</span>
+                </>
+              )}
+            </button>
           </div>
 
           <p className="text-xs text-center text-gray-500">
-            Secure payment via Razorpay. Your plan will be activated automatically upon successful backend verification.
+            Secure payment via Razorpay. Your plan will be activated automatically upon successful payment.
           </p>
         </div>
       </div>
