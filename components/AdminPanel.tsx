@@ -422,7 +422,6 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
       <div className="flex space-x-4 border-b overflow-x-auto pb-1 no-scrollbar">
         {[
           { id: 'dashboard', label: 'Dashboard' },
-          { id: 'requests', label: 'Subscription Requests' },
           { id: 'users', label: 'All Users' },
           { id: 'papers', label: 'All Papers' },
           { id: 'patterns', label: 'Sample Patterns' },
@@ -501,53 +500,12 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
           </div>
         )}
 
-        {activeTab === 'requests' && (
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            {/* ... Subscription Request Table ... */}
-            <div className="inline-block min-w-full align-middle">
-              <table className="min-w-full text-left">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="p-3 text-sm font-bold text-gray-600">User</th>
-                    <th className="p-3 text-sm font-bold text-gray-600">Plan</th>
-                    <th className="p-3 text-sm font-bold text-gray-600">Amount</th>
-                    <th className="p-3 text-sm font-bold text-gray-600">Proof</th>
-                    <th className="p-3 text-sm font-bold text-gray-600">Status</th>
-                    <th className="p-3 text-sm font-bold text-gray-600">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-gray-500">No pending requests</td></tr>}
-                  {requests.map((req) => (
-                    <tr key={req.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3 text-sm whitespace-nowrap">{req.userEmail}</td>
-                      <td className="p-3"><span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded whitespace-nowrap">{req.plan}</span></td>
-                      <td className="p-3 text-sm whitespace-nowrap">₹{req.amount}</td>
-                      <td className="p-3 text-sm whitespace-nowrap">
-                        <a href={req.proofUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">View</a>
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded text-xs whitespace-nowrap ${req.status === SubscriptionStatus.PENDING ? 'bg-yellow-100 text-yellow-800' :
-                          req.status === SubscriptionStatus.ACTIVE ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="p-3 space-x-2 whitespace-nowrap">
-                        {req.status === SubscriptionStatus.PENDING && (
-                          <>
-                            <button onClick={() => handleApproval(req.id, true)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700">Approve</button>
-                            <button onClick={() => handleApproval(req.id, false)} className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700">Reject</button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* ... (Existing Requests + Users Tabs) ... */}
+        {/* REQUESTS TAB REMOVED AS PER USER REQUEST */}
+        {/* 
+            Note: We still load requests in refreshData() to calculate Revenue stats, 
+            but we no longer show the table to manage them. 
+        */}
 
         {activeTab === 'users' && (
           <div>
