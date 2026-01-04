@@ -6,13 +6,13 @@ export const APP_NAME = "RKS QP Maker";
 export const CBSE_CLASSES = ['VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 export const CBSE_SUBJECTS: Record<string, string[]> = {
-  'VI': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'],
-  'VII': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'],
-  'VIII': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'],
-  'IX': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'],
-  'X': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi'],
-  'XI': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics', 'English', 'Computer Science'],
-  'XII': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics', 'English', 'Computer Science'],
+  'VI': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Punjabi', 'Sanskrit'],
+  'VII': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Punjabi', 'Sanskrit'],
+  'VIII': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Punjabi', 'Sanskrit'],
+  'IX': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Punjabi', 'Sanskrit'],
+  'X': ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Punjabi', 'Sanskrit'],
+  'XI': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics', 'English', 'Computer Science', 'Hindi', 'Punjabi', 'Sanskrit'],
+  'XII': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Accountancy', 'Economics', 'English', 'Computer Science', 'Hindi', 'Punjabi', 'Sanskrit'],
 };
 
 export const QUESTION_TYPES = Object.values(QuestionType);

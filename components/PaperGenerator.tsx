@@ -3,6 +3,109 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QuestionPaper, Section, Question, QuestionType, UserRole, BlueprintItem, SubscriptionPlan } from '../types';
 import { generateQuestionsWithAI, generateImageForQuestion } from '../services/geminiService';
 import { StorageService } from '../services/storageService';
+import Cropper from 'react-easy-crop';
+
+const TRANSLATIONS: any = {
+  Hindi: {
+    schoolName: 'विद्यालय का नाम',
+    examTitle: 'परीक्षा',
+    subject: 'विषय',
+    class: 'कक्षा',
+    session: 'सत्र',
+    time: 'समय',
+    maxMarks: 'पूर्णांक',
+    generalInstructions: 'सामान्य निर्देश',
+    section: 'खंड',
+    questionPrefix: 'प्र.',
+    answerKey: 'उत्तर कुंजी',
+    defaultInstructions: '1. सभी प्रश्न अनिवार्य हैं।\n2. प्रश्न पत्र में सभी खंडों के उत्तर देना अनिवार्य है।',
+    sectionLabels: ['अ', 'ब', 'स', 'द', 'इ', 'फ']
+  },
+  Punjabi: {
+    schoolName: 'ਸਕੂਲ ਦਾ ਨਾਮ',
+    examTitle: 'ਪ੍ਰੀਖਿਆ',
+    subject: 'ਵਿਸ਼ਾ',
+    class: 'ਜਮਾਤ',
+    session: 'ਸੈਸ਼ਨ',
+    time: 'ਸਮਾਂ',
+    maxMarks: 'ਕੁੱਲ ਅੰਕ',
+    generalInstructions: 'ਆਮ ਨਿਰਦੇਸ਼',
+    section: 'ਭਾਗ',
+    questionPrefix: 'ਪ੍ਰ.',
+    answerKey: 'ਉੱਤਰ ਕੁੰਜੀ',
+    defaultInstructions: '1. ਸਾਰੇ ਪ੍ਰਸ਼ਨ ਲਾਜ਼ਮੀ ਹਨ।\n2. ਪ੍ਰਸ਼ਨ ਪੱਤਰ ਵਿੱਚ ਸਾਰੇ ਭਾਗਾਂ ਦੇ ਉੱਤਰ ਦੇਣਾ ਲਾਜ਼ਮੀ ਹੈ।',
+    sectionLabels: ['ੳ', 'ਅ', 'ੲ', 'ਸ', 'ਹ', 'ਕ']
+  },
+  Sanskrit: {
+    schoolName: 'विद्यालयस्य नाम',
+    examTitle: 'परीक्षा',
+    subject: 'विषयः',
+    class: 'कक्षा',
+    session: 'सत्रम्',
+    time: 'समयः',
+    maxMarks: 'पूर्णाङ्काः',
+    generalInstructions: 'सामान्यनिर्देशाः',
+    section: 'खण्डः',
+    questionPrefix: 'प्र.',
+    answerKey: 'उत्तरकुञ्जिका',
+    defaultInstructions: '1. सर्वे प्रश्नाः अनिवर्याः सन्ति।\n2. प्रश्नपत्रे सर्वेषां खण्डानाम् उत्तराणि दातव्यानि।',
+    sectionLabels: ['क', 'ख', 'ग', 'घ', 'ङ', 'च']
+  },
+  English: {
+    schoolName: 'SCHOOL NAME',
+    examTitle: 'EXAMINATION',
+    subject: 'SUBJECT',
+    class: 'CLASS',
+    session: 'SESSION',
+    time: 'TIME',
+    maxMarks: 'MAX. MARKS',
+    generalInstructions: 'General Instructions',
+    section: 'SECTION',
+    questionPrefix: '',
+    answerKey: 'ANSWER KEY',
+    defaultInstructions: '1. All questions are compulsory.\n2. The question paper consists of ...',
+    sectionLabels: ['A', 'B', 'C', 'D', 'E', 'F']
+  }
+};
+
+const createImage = (url: string): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.addEventListener('load', () => resolve(image))
+    image.addEventListener('error', (error) => reject(error))
+    image.setAttribute('crossOrigin', 'anonymous')
+    image.src = url
+  })
+
+async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: { x: number; y: number; width: number; height: number },
+): Promise<string> {
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+
+  if (!ctx) {
+    return ''
+  }
+
+  canvas.width = pixelCrop.width
+  canvas.height = pixelCrop.height
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height
+  )
+
+  return canvas.toDataURL('image/jpeg');
+}
 
 interface Props {
   userEmail: string;
@@ -144,6 +247,13 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
   const [regeneratingQuestionId, setRegeneratingQuestionId] = useState<string | null>(null);
 
+  // Cropping State
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [lastUploadedFile, setLastUploadedFile] = useState<{ sectionId: string, qId: string } | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+
   const [downloadedFiles, setDownloadedFiles] = useState<{ paper: boolean, key: boolean }>({
     paper: false,
     key: false
@@ -190,7 +300,10 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     generalInstructions: '1. All questions are compulsory.\n2. The question paper consists of ...'
   });
 
-  const isHindiPaper = meta.subject === 'Hindi';
+
+
+  const currentLang = ['Hindi', 'Punjabi', 'Sanskrit'].includes(meta.subject) ? meta.subject : 'English';
+  const t = TRANSLATIONS[currentLang];
 
   useEffect(() => {
     if (autoDownload) {
@@ -211,16 +324,24 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   }, [meta.classNum, curriculumConfig]);
 
   useEffect(() => {
-    if (isHindiPaper) {
+    if (currentLang !== 'English') {
+      const is3Hours = meta.duration === '3 Hours';
+      let duration = meta.duration;
+      if (is3Hours) {
+        if (currentLang === 'Hindi') duration = '3 घंटे';
+        if (currentLang === 'Punjabi') duration = '3 ਘੰਟੇ';
+        if (currentLang === 'Sanskrit') duration = '३ होराः';
+      }
+
       setMeta(prev => ({
         ...prev,
-        duration: prev.duration === '3 Hours' ? '3 घंटे' : prev.duration,
+        duration: duration,
         generalInstructions: prev.generalInstructions.includes('All questions')
-          ? '1. सभी प्रश्न अनिवार्य हैं।\n2. प्रश्न पत्र में सभी खंडों के उत्तर देना अनिवार्य है।'
+          ? t.defaultInstructions
           : prev.generalInstructions
       }));
     }
-  }, [isHindiPaper]);
+  }, [currentLang]);
 
 
   const [blueprint, setBlueprint] = useState<BlueprintItem[]>([]);
@@ -254,9 +375,8 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   };
   const handleRemoveBlueprintItem = (id: string) => { setBlueprint(blueprint.filter(i => i.id !== id)); };
 
-  const getHindiSectionLabel = (idx: number) => {
-    const letters = ['अ', 'ब', 'स', 'द', 'इ', 'फ'];
-    return letters[idx] || String.fromCharCode(65 + idx);
+  const getSectionLabel = (idx: number) => {
+    return t.sectionLabels[idx] || String.fromCharCode(65 + idx);
   };
 
   const handleGenerateFullPaper = async () => {
@@ -276,20 +396,10 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
       for (let i = 0; i < blueprint.length; i++) {
         const item = blueprint[i];
 
-        let sectionLabel;
-        let sectionTitle;
+        const label = getSectionLabel(i);
+        const sectionTitle = `${t.section} ${label}`;
 
-        if (isHindiPaper) {
-          const label = getHindiSectionLabel(i);
-          sectionLabel = label;
-          sectionTitle = `खंड ${label}`;
-        } else {
-          const label = String.fromCharCode(65 + i);
-          sectionLabel = label;
-          sectionTitle = `SECTION ${label}`;
-        }
-
-        setGenerationStatus(`Generating Section ${sectionLabel}: ${item.count} ${item.type} questions for ${item.topic}...`);
+        setGenerationStatus(`Generating Section ${label}: ${item.count} ${item.type} questions for ${item.topic}...`);
         const generatedQs = await generateQuestionsWithAI(meta.classNum, meta.subject, item.topic, item.type, item.count, item.marks, styleContext);
         generatedSections.push({
           id: generateId(), title: sectionTitle, questions: generatedQs,
@@ -399,16 +509,35 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setSections(prev => prev.map(s => {
-        if (s.id !== sectionId) return s;
-        return {
-          ...s,
-          questions: s.questions.map(q => q.id === qId ? { ...q, imageUrl: reader.result as string, imageWidth: 50 } : q)
-        };
-      }));
+      // Instead of setting directly, open cropper
+      setCropImageSrc(reader.result as string);
+      setLastUploadedFile({ sectionId, qId });
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const handleSaveCrop = async () => {
+    if (!cropImageSrc || !croppedAreaPixels || !lastUploadedFile) return;
+    try {
+      const croppedImage = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      setSections(prev => prev.map(s => {
+        if (s.id !== lastUploadedFile.sectionId) return s;
+        return {
+          ...s,
+          questions: s.questions.map(q => q.id === lastUploadedFile.qId ? { ...q, imageUrl: croppedImage, imageWidth: 50 } : q)
+        };
+      }));
+      setCropImageSrc(null);
+      setLastUploadedFile(null);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to crop image.");
+    }
   };
 
   const savePaperInternal = async (paper: QuestionPaper) => {
@@ -544,14 +673,14 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
 
   const renderHeader = () => (
     <div className="text-center mb-2 border-b-2 border-black pb-1">
-      <h1 className="text-2xl font-bold uppercase mb-1 leading-tight">{meta.schoolName || (isHindiPaper ? 'विद्यालय का नाम' : 'SCHOOL NAME')}</h1>
-      <h2 className="text-lg font-semibold uppercase mb-2">{meta.title || (isHindiPaper ? 'परीक्षा' : 'EXAMINATION')}</h2>
+      <h1 className="text-2xl font-bold uppercase mb-1 leading-tight">{meta.schoolName || t.schoolName}</h1>
+      <h2 className="text-lg font-semibold uppercase mb-2">{meta.title || t.examTitle}</h2>
       <div className="font-bold text-sm border-t-2 border-black pt-1 uppercase w-full">
-        <div className="text-center text-base mb-1">{isHindiPaper ? 'विषय' : 'SUBJECT'}: {isHindiPaper ? 'हिंदी' : meta.subject}</div>
+        <div className="text-center text-base mb-1">{t.subject}: {meta.subject}</div>
         <div className="flex items-center w-full px-1">
-          <div className="w-1/4 text-left">{isHindiPaper ? 'समय' : 'TIME'}: {meta.duration}</div>
-          <div className="w-1/2 text-center"><span className="mr-6">{isHindiPaper ? 'कक्षा' : 'CLASS'}: {meta.classNum}</span><span>{isHindiPaper ? 'सत्र' : 'SESSION'}: {meta.session}</span></div>
-          <div className="w-1/4 text-right">{isHindiPaper ? 'पूर्णांक' : 'MAX. MARKS'}: {calculateTotalMarks()}</div>
+          <div className="w-1/4 text-left">{t.time}: {meta.duration}</div>
+          <div className="w-1/2 text-center"><span className="mr-6">{t.class}: {meta.classNum}</span><span>{t.session}: {meta.session}</span></div>
+          <div className="w-1/4 text-right">{t.maxMarks}: {calculateTotalMarks()}</div>
         </div>
       </div>
     </div>
@@ -563,7 +692,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
       <div className="bg-white text-black w-[210mm] min-h-[297mm] text-base leading-snug box-border shadow-none break-words" style={{ padding: '0.5in' }}>
         {renderHeader()}
         {meta.generalInstructions && meta.generalInstructions.trim() && (
-          <div className="mb-1 text-sm"><h3 className="font-bold underline mb-1 uppercase">{isHindiPaper ? 'सामान्य निर्देश' : 'General Instructions'}:</h3><p className="whitespace-pre-wrap leading-snug">{meta.generalInstructions}</p></div>
+          <div className="mb-1 text-sm"><h3 className="font-bold underline mb-1 uppercase">{t.generalInstructions}:</h3><p className="whitespace-pre-wrap leading-snug">{meta.generalInstructions}</p></div>
         )}
         {sections.map((section) => (
           <div key={section.id} className="mb-3">
@@ -574,8 +703,9 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
               {section.questions.map((q) => {
                 const qNum = ++printViewQuestionCounter;
                 return (
+
                   <div key={q.id} className="break-inside-avoid relative">
-                    <div className="flex gap-2"><span className="font-bold">{q.customNumber || (isHindiPaper ? `प्र. ${qNum}` : `${qNum}.`)}</span><div className="flex-1"><p className="whitespace-pre-wrap leading-snug text-justify break-words"><MathText text={q.text} /></p>
+                    <div className="flex gap-2"><span className="font-bold">{q.customNumber || `${t.questionPrefix}${qNum}${currentLang === 'English' ? '.' : ''}`}</span><div className="flex-1"><p className="whitespace-pre-wrap leading-snug text-justify break-words"><MathText text={q.text} /></p>
                       {q.options && q.options.length > 0 && (
                         <div className={`grid gap-x-8 gap-y-1 mt-1 ml-2 ${q.type === QuestionType.ASSERTION_REASON ? 'grid-cols-1' : getGridClass(q.options)}`}>
                           {q.options.map((opt, oIdx) => (<div key={oIdx} className="flex gap-2"><span className="font-semibold">({String.fromCharCode(97 + oIdx)})</span><span><MathText text={cleanOptionText(opt)} /></span></div>))}
@@ -624,14 +754,14 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     let qCounter = 0;
     return (
       <div className="bg-white text-black w-[210mm] min-h-[297mm] text-base leading-snug box-border shadow-none break-words" style={{ padding: '0.5in' }}>
-        <div className="text-center mb-6"><h1 className="text-2xl font-bold uppercase underline">{isHindiPaper ? 'उत्तर कुंजी' : 'ANSWER KEY'}</h1><h2 className="text-lg font-bold">{meta.schoolName}</h2><div className="text-sm font-bold mt-2">{isHindiPaper ? 'कक्षा' : 'CLASS'}: {meta.classNum} | {isHindiPaper ? 'विषय' : 'SUBJECT'}: {meta.subject} | {meta.title}</div></div>
+        <div className="text-center mb-6"><h1 className="text-2xl font-bold uppercase underline">{t.answerKey}</h1><h2 className="text-lg font-bold">{meta.schoolName}</h2><div className="text-sm font-bold mt-2">{t.class}: {meta.classNum} | {t.subject}: {meta.subject} | {meta.title}</div></div>
         {sections.map((section) => (
           <div key={section.id} className="mb-4">
             {section.title && section.title.trim() && <div className="font-bold uppercase underline mb-2 text-sm">{section.title}</div>}
             <div className="space-y-2">
               {section.questions.map((q) => {
                 const qNum = ++qCounter;
-                return (<div key={q.id} className="flex gap-2 break-inside-avoid"><span className="font-bold w-10">{q.customNumber || (isHindiPaper ? `प्र. ${qNum}` : `${qNum}.`)}</span><div className="flex-1"><div className="font-medium text-gray-900"><MathText text={q.answer || "Answer not available"} /></div></div><span className="text-xs font-bold text-gray-500">[{q.marks}]</span></div>)
+                return (<div key={q.id} className="flex gap-2 break-inside-avoid"><span className="font-bold w-10">{q.customNumber || `${t.questionPrefix}${qNum}${currentLang === 'English' ? '.' : ''}`}</span><div className="flex-1"><div className="font-medium text-gray-900"><MathText text={q.answer || "Answer not available"} /></div></div><span className="text-xs font-bold text-gray-500">[{q.marks}]</span></div>)
               })}
             </div>
           </div>
@@ -661,6 +791,36 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
           {previewMode === 'key' ? renderAnswerKeyContent() : renderPrintContent()}
         </div>
       </div>
+
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-bold">Crop Image</h3>
+              <button onClick={() => { setCropImageSrc(null); setLastUploadedFile(null); }} className="text-gray-500 hover:text-red-500"><i className="fas fa-times"></i></button>
+            </div>
+            <div className="relative flex-1 bg-black">
+              <Cropper
+                image={cropImageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={4 / 3}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            </div>
+            <div className="p-4 bg-white border-t flex justify-between items-center">
+              <div className="flex gap-4 w-1/2 items-center">
+                <span className="text-sm font-bold">Zoom</span>
+                <input type="range" value={zoom} min={1} max={3} step={0.1} aria-labelledby="Zoom" onChange={(e) => setZoom(Number(e.target.value))} className="w-full" />
+              </div>
+              <button onClick={handleSaveCrop} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700">Save Crop</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preview Modal */}
       {showPreviewModal && (
@@ -728,8 +888,8 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
                     </select>
                   </div>
                   <div><label className="block text-sm font-medium mb-1">Session</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.session} onChange={e => setMeta({ ...meta, session: e.target.value })} /></div>
-                  <div><label className="block text-sm font-medium mb-1">School Name</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.schoolName} onChange={e => setMeta({ ...meta, schoolName: e.target.value })} placeholder={isHindiPaper ? "विद्यालय का नाम" : "SCHOOL NAME"} /></div>
-                  <div><label className="block text-sm font-medium mb-1">Exam Title</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.title} onChange={e => setMeta({ ...meta, title: e.target.value })} placeholder={isHindiPaper ? "परीक्षा का नाम" : "EXAM TITLE"} /></div>
+                  <div><label className="block text-sm font-medium mb-1">School Name</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.schoolName} onChange={e => setMeta({ ...meta, schoolName: e.target.value })} placeholder={t.schoolName} /></div>
+                  <div><label className="block text-sm font-medium mb-1">Exam Title</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.title} onChange={e => setMeta({ ...meta, title: e.target.value })} placeholder={t.examTitle} /></div>
                   <div><label className="block text-sm font-medium mb-1">Duration</label><input disabled={readOnly} className="w-full border rounded p-2" value={meta.duration} onChange={e => setMeta({ ...meta, duration: e.target.value })} /></div>
                   <div><label className="block text-sm font-medium mb-1">Max Marks</label><input disabled={readOnly} type="number" className="w-full border rounded p-2" value={meta.maxMarks} onChange={e => setMeta({ ...meta, maxMarks: parseInt(e.target.value) })} /></div>
                 </div>
@@ -768,7 +928,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
                 <div className="border rounded-lg overflow-hidden shadow-sm">
                   {blueprint.map((item, idx) => (
                     <div key={item.id} className="flex justify-between items-center p-4 border-b">
-                      <div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded">{isHindiPaper ? getHindiSectionLabel(idx) : String.fromCharCode(65 + idx)}</div><div><div className="font-bold">{item.topic}</div><div className="text-sm">{item.count} x {item.type}</div></div></div>
+                      <div className="flex items-center gap-3"><div className="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded">{getSectionLabel(idx)}</div><div><div className="font-bold">{item.topic}</div><div className="text-sm">{item.count} x {item.type}</div></div></div>
                       {!readOnly && <button onClick={() => handleRemoveBlueprintItem(item.id)}><i className="fas fa-trash text-red-400"></i></button>}
                     </div>
                   ))}
@@ -781,7 +941,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
               <div className="flex flex-col space-y-8">
                 {readOnly && <div className="bg-yellow-100 text-yellow-800 p-2 rounded text-center font-bold">Read-Only Mode: Viewing Paper</div>}
                 <div className="text-center border-b pb-6 space-y-4">
-                  <input disabled={readOnly} className="block w-full text-center text-xl font-bold uppercase border-none" value={meta.schoolName} onChange={(e) => setMeta({ ...meta, schoolName: e.target.value })} placeholder={isHindiPaper ? "विद्यालय का नाम" : "SCHOOL NAME"} />
+                  <input disabled={readOnly} className="block w-full text-center text-xl font-bold uppercase border-none" value={meta.schoolName} onChange={(e) => setMeta({ ...meta, schoolName: e.target.value })} placeholder={t.schoolName} />
                 </div>
 
                 <div className="space-y-10">
@@ -813,7 +973,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
 
                           return (
                             <div key={q.id} className="flex gap-3 border-b border-gray-100 pb-6 last:border-0">
-                              <input disabled={readOnly} className="font-bold w-10 text-right" value={q.customNumber || (isHindiPaper ? `प्र. ${currentQNum}` : `Q${currentQNum}.`)} onChange={(e) => handleUpdateQuestion(section.id, q.id, 'customNumber', e.target.value)} />
+                              <input disabled={readOnly} className="font-bold w-10 text-right" value={q.customNumber || (currentLang === 'English' ? `Q${currentQNum}.` : `${t.questionPrefix} ${currentQNum}`)} onChange={(e) => handleUpdateQuestion(section.id, q.id, 'customNumber', e.target.value)} />
                               <div className="flex-1 space-y-3">
                                 <textarea disabled={readOnly} className="w-full p-2 border rounded font-mono" value={q.text} onChange={(e) => handleUpdateQuestion(section.id, q.id, 'text', e.target.value)} rows={Math.max(2, Math.ceil(q.text.length / 45))} />
                                 {q.options && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{q.options.map((opt, optIdx) => (<div key={optIdx} className="flex gap-2"><span className="font-bold">{String.fromCharCode(65 + optIdx)}.</span><input disabled={readOnly} className="w-full border-none" value={cleanOptionText(opt)} onChange={(e) => { const newOpts = [...q.options!]; newOpts[optIdx] = e.target.value; handleUpdateQuestion(section.id, q.id, 'options', newOpts); }} /></div>))}</div>}
