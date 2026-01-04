@@ -1,6 +1,4 @@
-
 import React, { useState } from 'react';
-import useRazorpay from "react-razorpay";
 import { PRICING, RAZORPAY_KEY_ID, APP_NAME } from '../constants';
 import { StorageService } from '../services/storageService';
 import { User, SubscriptionPlan } from '../types';
@@ -11,10 +9,19 @@ interface Props {
   onSuccess: () => void;
 }
 
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(SubscriptionPlan.PROFESSIONAL);
   const [loading, setLoading] = useState(false);
-  const [Razorpay] = useRazorpay();
 
   const handlePayment = async () => {
     if (!RAZORPAY_KEY_ID) {
@@ -30,6 +37,13 @@ const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
     }
 
     setLoading(true);
+
+    const res = await loadRazorpayScript();
+    if (!res) {
+      alert("Razorpay SDK failed to load. Are you online?");
+      setLoading(false);
+      return;
+    }
 
     const options = {
       key: RAZORPAY_KEY_ID,
@@ -72,7 +86,8 @@ const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
       }
     };
 
-    const rzp1 = new Razorpay(options);
+    // @ts-ignore
+    const rzp1 = new window.Razorpay(options);
     rzp1.on("payment.failed", function (response: any) {
       alert(response.error.description);
       setLoading(false);
@@ -126,7 +141,7 @@ const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
           </div>
 
           <p className="text-xs text-center text-gray-500">
-            Secure payment via Razorpay. Your plan will be activated automatically upon successful payment.
+            Secure payment via Razorpay. Your plan will be activated automatically upon successful backend verification.
           </p>
         </div>
       </div>
