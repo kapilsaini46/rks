@@ -10,12 +10,21 @@ interface Props {
 }
 
 const AdminPanel: React.FC<Props> = ({ user }) => {
-  const [activeTab, setActiveTab] = useState<'requests' | 'users' | 'papers' | 'patterns' | 'curriculum' | 'content'>('requests');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'requests' | 'users' | 'papers' | 'patterns' | 'curriculum' | 'content'>('dashboard');
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [papers, setPapers] = useState<QuestionPaper[]>([]);
   const [view, setView] = useState<'dashboard' | 'create'>('dashboard');
   const [selectedPaper, setSelectedPaper] = useState<QuestionPaper | null>(null);
+
+  // Folder View State
+  const [selectedFolderUser, setSelectedFolderUser] = useState<string | null>(null); // email of the user whose folder is open
+
+  // Stats State
+  const [stats, setStats] = useState({
+    usersByPlan: {} as Record<string, number>,
+    revenue: { total: 0, monthly: 0, yearly: 0, byPlan: {} as Record<string, number> }
+  });
 
   // Curriculum Data
   const [curriculumConfig, setCurriculumConfig] = useState<Record<string, string[]>>({});
@@ -52,6 +61,8 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
   const [syllabusFile, setSyllabusFile] = useState<{ name: string, data: string, mimeType: string } | null>(null);
   const [saveStatus, setSaveStatus] = useState('');
 
+  // ... (existing state)
+
   const refreshData = async () => {
     try {
       const reqs = await StorageService.getAllRequests();
@@ -63,16 +74,52 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
       const allPapers = await StorageService.getAllPapers();
       setPapers(allPapers);
 
+      // ... (existing config/content loading)
       const config = await StorageService.getConfig();
       setCurriculumConfig(config);
-
       const qTypes = await StorageService.getQuestionTypes();
       setQuestionTypes(qTypes);
-
       const pages = await StorageService.getAllContentPages();
       setContentPages(pages);
 
-      // Set default selected class/subject if empty and config exists
+      // CALC STATS
+      // 1. Users by Plan
+      const userCounts: Record<string, number> = {};
+      users.forEach(u => {
+        userCounts[u.subscriptionPlan] = (userCounts[u.subscriptionPlan] || 0) + 1;
+      });
+
+      // 2. Revenue
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      let totalRev = 0;
+      let monthlyRev = 0;
+      let yearlyRev = 0;
+      const revByPlan: Record<string, number> = {};
+
+      reqs.forEach(r => {
+        if (r.status === SubscriptionStatus.ACTIVE) {
+          totalRev += r.amount;
+          revByPlan[r.plan] = (revByPlan[r.plan] || 0) + r.amount;
+
+          const rDate = new Date(r.date);
+          if (rDate.getFullYear() === currentYear) {
+            yearlyRev += r.amount;
+            if (rDate.getMonth() === currentMonth) {
+              monthlyRev += r.amount;
+            }
+          }
+        }
+      });
+
+      setStats({
+        usersByPlan: userCounts,
+        revenue: { total: totalRev, monthly: monthlyRev, yearly: yearlyRev, byPlan: revByPlan }
+      });
+
+      // ... (existing defaults)
       const classes = Object.keys(config);
       if (classes.length > 0 && !patternClass) {
         setPatternClass(classes[0]);
@@ -81,6 +128,8 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
       console.error("Error refreshing admin data", error);
     }
   };
+
+  // Effects & Helper Functions
 
   const loadPattern = async () => {
     if (!patternClass || !patternSubject) {
@@ -192,14 +241,6 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
     }
     if (window.confirm(`Are you sure you want to delete user ${u.name} (${u.email})? This action cannot be undone.`)) {
       await StorageService.deleteUser(u.email);
-      refreshData();
-    }
-  };
-
-  const confirmDeletePaper = async (target: 'ADMIN' | 'TEACHER') => {
-    if (paperToDelete) {
-      await StorageService.deletePaper(paperToDelete.id, target);
-      setPaperToDelete(null);
       refreshData();
     }
   };
@@ -336,6 +377,19 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
     return <span className={diffDays < 7 ? 'text-red-500 font-bold' : 'text-green-600'}>{diffDays} Days</span>;
   };
 
+  // Helper to get Folder Name
+  const getFolderName = (email: string) => {
+    const u = allUsers.find(user => user.email === email);
+    if (!u) return `Unknown User (${email})`;
+    return `${u.name} - ${u.schoolName || 'No School'} - ${u.state || 'No State'}`;
+  };
+
+  // Group papers by creator
+  const papersByCreator = papers.reduce((acc, p) => {
+    acc[p.createdBy] = acc[p.createdBy] || [];
+    acc[p.createdBy].push(p);
+    return acc;
+  }, {} as Record<string, QuestionPaper[]>);
 
   if (view === 'create' || selectedPaper) {
     return (
@@ -355,7 +409,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Admin Panel</h1>
         <button
           onClick={() => setView('create')}
           className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-bold flex justify-center items-center gap-2 shadow-md transition-all"
@@ -367,6 +421,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
       {/* Tabs */}
       <div className="flex space-x-4 border-b overflow-x-auto pb-1 no-scrollbar">
         {[
+          { id: 'dashboard', label: 'Dashboard' },
           { id: 'requests', label: 'Subscription Requests' },
           { id: 'users', label: 'All Users' },
           { id: 'papers', label: 'All Papers' },
@@ -376,7 +431,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => { setActiveTab(tab.id as any); setSelectedFolderUser(null); }}
             className={`pb-2 px-4 font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
               ? 'border-b-2 border-purple-600 text-purple-600'
               : 'text-gray-500 hover:text-gray-700'
@@ -389,6 +444,62 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
 
       {/* Content */}
       <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6 min-h-[500px]">
+
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <h3 className="text-blue-800 font-bold text-sm uppercase">Total Revenue</h3>
+                <p className="text-3xl font-bold text-blue-900 mt-2">₹{stats.revenue.total.toLocaleString()}</p>
+                <p className="text-xs text-blue-600 mt-1">Lifetime</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                <h3 className="text-green-800 font-bold text-sm uppercase">Revenue (Yearly)</h3>
+                <p className="text-3xl font-bold text-green-900 mt-2">₹{stats.revenue.yearly.toLocaleString()}</p>
+                <p className="text-xs text-green-600 mt-1">Current Year</p>
+              </div>
+              <div className="bg-teal-50 p-4 rounded-lg border border-teal-100">
+                <h3 className="text-teal-800 font-bold text-sm uppercase">Revenue (Monthly)</h3>
+                <p className="text-3xl font-bold text-teal-900 mt-2">₹{stats.revenue.monthly.toLocaleString()}</p>
+                <p className="text-xs text-teal-600 mt-1">Current Month</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                <h3 className="text-purple-800 font-bold text-sm uppercase">Total Users</h3>
+                <p className="text-3xl font-bold text-purple-900 mt-2">{allUsers.length}</p>
+                <p className="text-xs text-purple-600 mt-1">Registered</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* User Breakdown */}
+              <div className="border rounded-lg p-6">
+                <h3 className="font-bold text-lg mb-4 text-gray-800">Users by Plan</h3>
+                <div className="space-y-3">
+                  {Object.entries(stats.usersByPlan).map(([plan, count]) => (
+                    <div key={plan} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="font-medium text-gray-700">{plan}</span>
+                      <span className="font-bold text-gray-900">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Revenue Breakdown */}
+              <div className="border rounded-lg p-6">
+                <h3 className="font-bold text-lg mb-4 text-gray-800">Revenue by Plan</h3>
+                <div className="space-y-3">
+                  {Object.entries(stats.revenue.byPlan).map(([plan, amt]) => (
+                    <div key={plan} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="font-medium text-gray-700">{plan}</span>
+                      <span className="font-bold text-gray-900">₹{amt.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'requests' && (
           <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -521,37 +632,69 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
         )}
 
         {activeTab === 'papers' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* ... Papers Grid ... */}
-            {papers.map((p) => (
-              <div key={p.id} className="border p-4 rounded-lg bg-gray-50 flex flex-col h-full">
-                <h3 className="font-bold text-gray-800 line-clamp-2">{p.title}</h3>
-                <p className="text-sm text-gray-600 mb-2">Class {p.classNum} • {p.subject}</p>
-                <div className="mt-auto flex justify-between items-end">
-                  <div>
-                    <p className="text-xs text-gray-400">By: {p.createdBy}</p>
-                    <span className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</span>
+          <div className="space-y-4">
+            {/* If NO folder selected, show Folders */}
+            {!selectedFolderUser ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Object.keys(papersByCreator).length === 0 && <p className="text-gray-400 col-span-3 text-center py-10">No papers generated yet.</p>}
+
+                {Object.entries(papersByCreator).map(([email, userPapers]) => (
+                  <div
+                    key={email}
+                    onClick={() => setSelectedFolderUser(email)}
+                    className="border rounded-xl p-6 bg-yellow-50 hover:bg-yellow-100 transition-colors cursor-pointer group flex flex-col items-center text-center shadow-sm"
+                  >
+                    <i className="fas fa-folder text-6xl text-yellow-500 mb-4 group-hover:scale-110 transition-transform"></i>
+                    <h3 className="font-bold text-gray-800 text-lg mb-1">{getFolderName(email)}</h3>
+                    <p className="text-sm text-gray-500">{userPapers.length} Papers</p>
+                    <p className="text-xs text-gray-400 mt-2">{email}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setSelectedPaper(p)}
-                      className="text-blue-500 hover:text-blue-700 p-2 hover:bg-blue-50 rounded"
-                      title="View/Edit Paper"
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button
-                      onClick={() => setPaperToDelete(p)}
-                      className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded"
-                      title="Delete Paper"
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </div>
+                ))}
+              </div>
+            ) : (
+              /* If Folder Selected, show Papers for that user */
+              <div>
+                <button
+                  onClick={() => setSelectedFolderUser(null)}
+                  className="mb-4 text-gray-600 hover:text-gray-900 font-medium flex items-center gap-2"
+                >
+                  <i className="fas fa-arrow-left"></i> Back to Folders
+                </button>
+                <h3 className="text-xl font-bold mb-4 border-b pb-2">
+                  Papers: {getFolderName(selectedFolderUser)}
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {papersByCreator[selectedFolderUser].map((p) => (
+                    <div key={p.id} className="border p-4 rounded-lg bg-gray-50 flex flex-col h-full hover:shadow-md transition-shadow">
+                      <h3 className="font-bold text-gray-800 line-clamp-2">{p.title}</h3>
+                      <p className="text-sm text-gray-600 mb-2">Class {p.classNum} • {p.subject}</p>
+                      <div className="mt-auto flex justify-between items-end">
+                        <div>
+                          <span className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSelectedPaper(p)}
+                            className="text-blue-500 hover:text-blue-700 p-2 hover:bg-blue-50 rounded"
+                            title="View/Edit Paper"
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button
+                            onClick={() => setPaperToDelete(p)}
+                            className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded"
+                            title="Delete Paper"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-            {papers.length === 0 && <p className="text-gray-400 col-span-3 text-center py-10">No papers generated yet.</p>}
+            )}
           </div>
         )}
 

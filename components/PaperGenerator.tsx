@@ -302,7 +302,15 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
 
 
 
-  const currentLang = ['Hindi', 'Punjabi', 'Sanskrit'].includes(meta.subject) ? meta.subject : 'English';
+  const getNormalizedLang = (s: string) => {
+    if (!s) return 'English';
+    const lower = s.toLowerCase();
+    if (lower === 'hindi') return 'Hindi';
+    if (lower === 'punjabi') return 'Punjabi';
+    if (lower === 'sanskrit') return 'Sanskrit';
+    return 'English';
+  };
+  const currentLang = getNormalizedLang(meta.subject);
   const t = TRANSLATIONS[currentLang];
 
   useEffect(() => {
@@ -324,22 +332,29 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   }, [meta.classNum, curriculumConfig]);
 
   useEffect(() => {
-    console.log("Language Effect Triggered. Current Lang:", currentLang);
-    console.log("Current Meta:", meta);
-
     // defaults for English to check against
     const defaultEngTitle = 'Half Yearly Examination';
     const defaultEngSchool = 'Kendriya Vidyalaya';
+    const defaultEngInstructions = '1. All questions are compulsory.\n2. The question paper consists of ...';
 
-    // Helper to check if a string is roughly one of our known defaults
-    const normalize = (s: string) => s ? s.trim().toLowerCase() : '';
+    // Helper to check if a string is roughly one of our known defaults (to avoid overwriting user custom text)
     const isDefaultTitle = (s: string) => {
-      const n = normalize(s);
-      return n === normalize(defaultEngTitle) || n === normalize('अर्धवार्षिक परीक्षा') || n === normalize('ਅਰਧ ਸਾਲਾਨਾ ਪ੍ਰੀਖਿਆ') || n === normalize('अर्धवार्षिकपरीक्षा') || n === 'examination';
+      if (!s) return true;
+      const lower = s.toLowerCase();
+      return lower === defaultEngTitle.toLowerCase() ||
+        lower === 'अर्धवार्षिक परीक्षा' ||
+        lower === 'ਅਰਧ ਸਾਲਾਨਾ ਪ੍ਰੀਖਿਆ' ||
+        lower === 'अर्धवार्षिकपरीक्षा' ||
+        lower.includes('exam') || lower.includes('test') || lower.includes('परीक्षा');
     };
     const isDefaultSchool = (s: string) => {
-      const n = normalize(s);
-      return n === normalize(defaultEngSchool) || n === normalize('केन्द्रीय विद्यालय') || n === normalize('ਕੇਂਦਰੀ ਵਿਦਿਆਲਯ') || n === normalize('केन्द्रीयविद्यालयः') || n === 'school name';
+      if (!s) return true;
+      const lower = s.toLowerCase();
+      return lower === defaultEngSchool.toLowerCase() ||
+        lower === 'केन्द्रीय विद्यालय' ||
+        lower === 'ਕੇਂਦਰੀ ਵਿਦਿਆਲਯ' ||
+        lower === 'केन्द्रीयविद्यालयः' ||
+        lower.includes('school') || lower.includes('vidyalaya');
     };
 
     // Update Meta
@@ -368,11 +383,11 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
         if (isDefaultTitle(prev.title)) newTitle = defaultEngTitle;
         if (isDefaultSchool(prev.schoolName)) newSchool = defaultEngSchool;
         if (prev.generalInstructions.includes('सभी प्रश्न') || prev.generalInstructions.includes('ਸਾਰੇ ਪ੍ਰਸ਼ਨ') || prev.generalInstructions.includes('सर्वे प्रश्नाः'))
-          newInstructions = '1. All questions are compulsory.\n2. The question paper consists of ...';
+          newInstructions = defaultEngInstructions;
       }
 
       // Time duration update
-      const is3Hours = normalize(prev.duration) === normalize('3 Hours') || normalize(prev.duration) === normalize('3 घंटे') || normalize(prev.duration) === normalize('3 ਘੰਟੇ') || normalize(prev.duration) === normalize('३ होराः');
+      const is3Hours = prev.duration === '3 Hours' || prev.duration === '3 घंटे' || prev.duration === '3 ਘੰਟੇ' || prev.duration === '३ होराः';
       let duration = prev.duration;
       if (is3Hours) {
         if (currentLang === 'Hindi') duration = '3 घंटे';
@@ -393,13 +408,13 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     // Update Sections (e.g. SECTION A -> खंड अ)
     setSections(prevSections => prevSections.map((sec, idx) => {
       let newTitle = sec.title;
-      const nTitle = normalize(sec.title);
       // Heuristic: if title looks like "SECTION X" or "खंड X", update it
+      // We can just regenerate the default title for the index
       if (
-        nTitle.startsWith('section') ||
-        nTitle.startsWith('खंड') ||
-        nTitle.startsWith('ਭਾਗ') ||
-        nTitle.startsWith('खण्डः')
+        sec.title.startsWith('SECTION') ||
+        sec.title.startsWith('खंड') ||
+        sec.title.startsWith('ਭਾਗ') ||
+        sec.title.startsWith('खण्डः')
       ) {
         const label = t.sectionLabels[idx] || String.fromCharCode(65 + idx);
         newTitle = `${t.section} ${label}`;
@@ -407,7 +422,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
       return { ...sec, title: newTitle };
     }));
 
-  }, [currentLang, t]);
+  }, [currentLang]);
 
 
   const [blueprint, setBlueprint] = useState<BlueprintItem[]>([]);
@@ -737,20 +752,63 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     }, 500);
   };
 
-  const renderHeader = () => (
-    <div className="text-center mb-2 border-b-2 border-black pb-1">
-      <h1 className="text-2xl font-bold uppercase mb-1 leading-tight">{meta.schoolName || t.schoolName}</h1>
-      <h2 className="text-lg font-semibold uppercase mb-2">{meta.title || t.examTitle}</h2>
-      <div className="font-bold text-sm border-t-2 border-black pt-1 uppercase w-full">
-        <div className="text-center text-base mb-1">{t.subject}: {meta.subject}</div>
-        <div className="flex items-center w-full px-1">
-          <div className="w-1/4 text-left">{t.time}: {meta.duration}</div>
-          <div className="w-1/2 text-center"><span className="mr-6">{t.class}: {meta.classNum}</span><span>{t.session}: {meta.session}</span></div>
-          <div className="w-1/4 text-right">{t.maxMarks}: {calculateTotalMarks()}</div>
+  // Class & Subject Translations
+  const CLASS_TRANSLATIONS: any = {
+    Hindi: { 'VI': 'छठी', 'VII': 'सातवीं', 'VIII': 'आठवीं', 'IX': 'नौवीं', 'X': 'दसवीं', 'XI': 'ग्यारहवीं', 'XII': 'बारहवीं' },
+    Punjabi: { 'VI': 'ਛੇਵੀਂ', 'VII': 'ਸੱਤਵੀਂ', 'VIII': 'ਅੱਠਵੀਂ', 'IX': 'ਨੌਵੀਂ', 'X': 'ਦਸਵੀਂ', 'XI': 'ਗਿਆਰਵੀਂ', 'XII': 'ਬਾਰ੍ਹਵੀਂ' },
+    Sanskrit: { 'VI': 'षष्ठी', 'VII': 'सप्तमी', 'VIII': 'अष्टमी', 'IX': 'नवमी', 'X': 'दशमी', 'XI': 'एकादशी', 'XII': 'द्वादशी' }
+  };
+
+  const SUBJECT_DISPLAY: any = {
+    Hindi: { 'Hindi': 'हिन्दी', 'Punjabi': 'पंजाबी', 'Sanskrit': 'संस्कृत' },
+    Punjabi: { 'Hindi': 'ਹਿੰਦੀ', 'Punjabi': 'ਪੰਜਾਬੀ', 'Sanskrit': 'ਸੰਸਕ੍ਰਿਤ' },
+    Sanskrit: { 'Hindi': 'हिन्दी', 'Punjabi': 'पंजाबी', 'Sanskrit': 'संस्कृतम्' } // fallback to Hindi script for Sanskrit generally
+  };
+
+  const renderHeader = () => {
+    // Determine Display Strings
+    let displayClass = meta.classNum;
+    let displaySubject = meta.subject;
+
+    if (currentLang !== 'English' && CLASS_TRANSLATIONS[currentLang] && CLASS_TRANSLATIONS[currentLang][meta.classNum]) {
+      displayClass = CLASS_TRANSLATIONS[currentLang][meta.classNum];
+      // Check if we often prefix with Class, usually header is just "Class: X" or "कक्षा: दसवीं"
+      // The layout below handles the label separately.
+    }
+
+    // Attempt to translate subject if it matches one of our targets
+    // We normalize to Title Case for lookup
+    const subjKey = meta.subject.charAt(0).toUpperCase() + meta.subject.slice(1).toLowerCase();
+    if (currentLang !== 'English' && SUBJECT_DISPLAY[currentLang] && SUBJECT_DISPLAY[currentLang][subjKey]) {
+      displaySubject = SUBJECT_DISPLAY[currentLang][subjKey];
+    } else if (currentLang === 'Hindi' && subjKey === 'English') {
+      // Example fallback: keeping English as English or translating it? Usually keeps as English subject name if teaching English.
+      // But user asked for specific languages.
+    }
+
+    return (
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold uppercase mb-1 whitespace-pre-wrap">{meta.schoolName}</h1>
+        <h2 className="text-xl font-bold uppercase mb-2 underline whitespace-pre-wrap">{meta.title}</h2>
+        <div className="border-t-2 border-b-2 border-black py-1 flex justify-between items-center text-sm font-bold uppercase">
+          <div className="w-1/3 text-left">
+            <span>{t.time}: {meta.duration}</span>
+          </div>
+          <div className="w-1/3 text-center">
+            <span>{t.class}: {displayClass}</span>
+            <span className="mx-2">|</span>
+            <span>{t.session}: {meta.session}</span>
+          </div>
+          <div className="w-1/3 text-right">
+            <span>{t.maxMarks}: {calculateTotalMarks()}</span>
+          </div>
+        </div>
+        <div className="font-bold uppercase mt-1 border-b-2 border-black pb-1">
+          {t.subject}: {displaySubject}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderPrintContent = () => {
     let printViewQuestionCounter = 0;
