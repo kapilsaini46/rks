@@ -324,23 +324,80 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   }, [meta.classNum, curriculumConfig]);
 
   useEffect(() => {
-    if (currentLang !== 'English') {
-      const is3Hours = meta.duration === '3 Hours';
-      let duration = meta.duration;
-      if (is3Hours) {
-        if (currentLang === 'Hindi') duration = '3 घंटे';
-        if (currentLang === 'Punjabi') duration = '3 ਘੰਟੇ';
-        if (currentLang === 'Sanskrit') duration = '३ होराः';
+    // defaults for English to check against
+    const defaultEngTitle = 'Half Yearly Examination';
+    const defaultEngSchool = 'Kendriya Vidyalaya';
+    const defaultEngInstructions = '1. All questions are compulsory.\n2. The question paper consists of ...';
+
+    // Helper to check if a string is roughly one of our known defaults (to avoid overwriting user custom text)
+    const isDefaultTitle = (s: string) => s === defaultEngTitle || s === 'अर्धवार्षिक परीक्षा' || s === 'ਅਰਧ ਸਾਲਾਨਾ ਪ੍ਰੀਖਿਆ' || s === 'अर्धवार्षिकपरीक्षा';
+    const isDefaultSchool = (s: string) => s === defaultEngSchool || s === 'केन्द्रीय विद्यालय' || s === 'ਕੇਂਦਰੀ ਵਿਦਿਆਲਯ' || s === 'केन्द्रीयविद्यालयः';
+
+    // Update Meta
+    setMeta(prev => {
+      let newTitle = prev.title;
+      let newSchool = prev.schoolName;
+      let newInstructions = prev.generalInstructions;
+
+      if (currentLang === 'Hindi') {
+        if (isDefaultTitle(prev.title)) newTitle = 'अर्धवार्षिक परीक्षा';
+        if (isDefaultSchool(prev.schoolName)) newSchool = 'केन्द्रीय विद्यालय';
+        if (prev.generalInstructions.includes('All questions') || prev.generalInstructions.includes('ਸਾਰੇ ਪ੍ਰਸ਼ਨ') || prev.generalInstructions.includes('सर्वे प्रश्नाः'))
+          newInstructions = t.defaultInstructions;
+      } else if (currentLang === 'Punjabi') {
+        if (isDefaultTitle(prev.title)) newTitle = 'ਅਰਧ ਸਾਲਾਨਾ ਪ੍ਰੀਖਿਆ';
+        if (isDefaultSchool(prev.schoolName)) newSchool = 'ਕੇਂਦਰੀ ਵਿਦਿਆਲਯ';
+        if (prev.generalInstructions.includes('All questions') || prev.generalInstructions.includes('सभी प्रश्न') || prev.generalInstructions.includes('सर्वे प्रश्नाः'))
+          newInstructions = t.defaultInstructions;
+      } else if (currentLang === 'Sanskrit') {
+        if (isDefaultTitle(prev.title)) newTitle = 'अर्धवार्षिकपरीक्षा';
+        if (isDefaultSchool(prev.schoolName)) newSchool = 'केन्द्रीयविद्यालयः';
+        if (prev.generalInstructions.includes('All questions') || prev.generalInstructions.includes('सभी प्रश्न') || prev.generalInstructions.includes('ਸਾਰੇ ਪ੍ਰਸ਼ਨ'))
+          newInstructions = t.defaultInstructions;
+      } else {
+        // Switch back to English defaults if we were on a localized default
+        if (isDefaultTitle(prev.title)) newTitle = defaultEngTitle;
+        if (isDefaultSchool(prev.schoolName)) newSchool = defaultEngSchool;
+        if (prev.generalInstructions.includes('सभी प्रश्न') || prev.generalInstructions.includes('ਸਾਰੇ ਪ੍ਰਸ਼ਨ') || prev.generalInstructions.includes('सर्वे प्रश्नाः'))
+          newInstructions = defaultEngInstructions;
       }
 
-      setMeta(prev => ({
+      // Time duration update
+      const is3Hours = prev.duration === '3 Hours' || prev.duration === '3 घंटे' || prev.duration === '3 ਘੰਟੇ' || prev.duration === '३ होराः';
+      let duration = prev.duration;
+      if (is3Hours) {
+        if (currentLang === 'Hindi') duration = '3 घंटे';
+        else if (currentLang === 'Punjabi') duration = '3 ਘੰਟੇ';
+        else if (currentLang === 'Sanskrit') duration = '३ होराः';
+        else duration = '3 Hours';
+      }
+
+      return {
         ...prev,
+        title: newTitle,
+        schoolName: newSchool,
         duration: duration,
-        generalInstructions: prev.generalInstructions.includes('All questions')
-          ? t.defaultInstructions
-          : prev.generalInstructions
-      }));
-    }
+        generalInstructions: newInstructions
+      };
+    });
+
+    // Update Sections (e.g. SECTION A -> खंड अ)
+    setSections(prevSections => prevSections.map((sec, idx) => {
+      let newTitle = sec.title;
+      // Heuristic: if title looks like "SECTION X" or "खंड X", update it
+      // We can just regenerate the default title for the index
+      if (
+        sec.title.startsWith('SECTION') ||
+        sec.title.startsWith('खंड') ||
+        sec.title.startsWith('ਭਾਗ') ||
+        sec.title.startsWith('खण्डः')
+      ) {
+        const label = t.sectionLabels[idx] || String.fromCharCode(65 + idx);
+        newTitle = `${t.section} ${label}`;
+      }
+      return { ...sec, title: newTitle };
+    }));
+
   }, [currentLang]);
 
 
