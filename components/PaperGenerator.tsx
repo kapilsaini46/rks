@@ -324,14 +324,23 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
   }, [meta.classNum, curriculumConfig]);
 
   useEffect(() => {
+    console.log("Language Effect Triggered. Current Lang:", currentLang);
+    console.log("Current Meta:", meta);
+
     // defaults for English to check against
     const defaultEngTitle = 'Half Yearly Examination';
     const defaultEngSchool = 'Kendriya Vidyalaya';
-    const defaultEngInstructions = '1. All questions are compulsory.\n2. The question paper consists of ...';
 
-    // Helper to check if a string is roughly one of our known defaults (to avoid overwriting user custom text)
-    const isDefaultTitle = (s: string) => s === defaultEngTitle || s === 'अर्धवार्षिक परीक्षा' || s === 'ਅਰਧ ਸਾਲਾਨਾ ਪ੍ਰੀਖਿਆ' || s === 'अर्धवार्षिकपरीक्षा';
-    const isDefaultSchool = (s: string) => s === defaultEngSchool || s === 'केन्द्रीय विद्यालय' || s === 'ਕੇਂਦਰੀ ਵਿਦਿਆਲਯ' || s === 'केन्द्रीयविद्यालयः';
+    // Helper to check if a string is roughly one of our known defaults
+    const normalize = (s: string) => s ? s.trim().toLowerCase() : '';
+    const isDefaultTitle = (s: string) => {
+      const n = normalize(s);
+      return n === normalize(defaultEngTitle) || n === normalize('अर्धवार्षिक परीक्षा') || n === normalize('ਅਰਧ ਸਾਲਾਨਾ ਪ੍ਰੀਖਿਆ') || n === normalize('अर्धवार्षिकपरीक्षा') || n === 'examination';
+    };
+    const isDefaultSchool = (s: string) => {
+      const n = normalize(s);
+      return n === normalize(defaultEngSchool) || n === normalize('केन्द्रीय विद्यालय') || n === normalize('ਕੇਂਦਰੀ ਵਿਦਿਆਲਯ') || n === normalize('केन्द्रीयविद्यालयः') || n === 'school name';
+    };
 
     // Update Meta
     setMeta(prev => {
@@ -359,11 +368,11 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
         if (isDefaultTitle(prev.title)) newTitle = defaultEngTitle;
         if (isDefaultSchool(prev.schoolName)) newSchool = defaultEngSchool;
         if (prev.generalInstructions.includes('सभी प्रश्न') || prev.generalInstructions.includes('ਸਾਰੇ ਪ੍ਰਸ਼ਨ') || prev.generalInstructions.includes('सर्वे प्रश्नाः'))
-          newInstructions = defaultEngInstructions;
+          newInstructions = '1. All questions are compulsory.\n2. The question paper consists of ...';
       }
 
       // Time duration update
-      const is3Hours = prev.duration === '3 Hours' || prev.duration === '3 घंटे' || prev.duration === '3 ਘੰਟੇ' || prev.duration === '३ होराः';
+      const is3Hours = normalize(prev.duration) === normalize('3 Hours') || normalize(prev.duration) === normalize('3 घंटे') || normalize(prev.duration) === normalize('3 ਘੰਟੇ') || normalize(prev.duration) === normalize('३ होराः');
       let duration = prev.duration;
       if (is3Hours) {
         if (currentLang === 'Hindi') duration = '3 घंटे';
@@ -384,13 +393,13 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     // Update Sections (e.g. SECTION A -> खंड अ)
     setSections(prevSections => prevSections.map((sec, idx) => {
       let newTitle = sec.title;
+      const nTitle = normalize(sec.title);
       // Heuristic: if title looks like "SECTION X" or "खंड X", update it
-      // We can just regenerate the default title for the index
       if (
-        sec.title.startsWith('SECTION') ||
-        sec.title.startsWith('खंड') ||
-        sec.title.startsWith('ਭਾਗ') ||
-        sec.title.startsWith('खण्डः')
+        nTitle.startsWith('section') ||
+        nTitle.startsWith('खंड') ||
+        nTitle.startsWith('ਭਾਗ') ||
+        nTitle.startsWith('खण्डः')
       ) {
         const label = t.sectionLabels[idx] || String.fromCharCode(65 + idx);
         newTitle = `${t.section} ${label}`;
@@ -398,7 +407,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
       return { ...sec, title: newTitle };
     }));
 
-  }, [currentLang]);
+  }, [currentLang, t]);
 
 
   const [blueprint, setBlueprint] = useState<BlueprintItem[]>([]);
