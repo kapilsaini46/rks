@@ -48,8 +48,17 @@
 
       /* Ensure standard page margins (0 to allow CSS padding control) */
       @page {
-        margin: 0;
+        margin: 10mm;
         size: A4;
+      }
+
+      /* Ensure the print container fits nicely */
+      .print-content-container {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
       }
     }
 

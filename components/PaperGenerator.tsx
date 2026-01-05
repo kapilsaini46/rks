@@ -703,7 +703,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
         margin: 0,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true, x: 0, y: 0, scrollX: 0, scrollY: 0, windowWidth: 850, logging: false },
+        html2canvas: { scale: 2, useCORS: true, x: 0, y: 0, scrollX: 0, scrollY: 0, windowWidth: 850, logging: false },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
       };
 
@@ -810,6 +810,34 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     );
   };
 
+  const handleNativePrint = async (type: 'paper' | 'key') => {
+    if (sections.length === 0) return alert('No sections to generate PDF from.');
+
+    // Switch to correct view
+    if (type === 'key') {
+      setPreviewMode('key');
+    } else {
+      setPreviewMode('paper');
+    }
+
+    // Wait for render, then print
+    setTimeout(async () => {
+      window.print();
+
+      // Track download count if applicable
+      const currentPaperId = internalExistingPaper?.id;
+      if (currentPaperId && !isAdmin) {
+        // Just increment without blocking
+        const papers = await StorageService.getPapersByUser(userEmail);
+        const p = papers.find(p => p.id === currentPaperId);
+        if (p) {
+          const updatedPaper = { ...p, downloadCount: (p.downloadCount || 0) + 1 };
+          await StorageService.savePaper(updatedPaper);
+        }
+      }
+    }, 500);
+  };
+
   const renderPrintContent = () => {
     let printViewQuestionCounter = 0;
     return (
@@ -902,7 +930,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     return (
       <>
         <div className="fixed inset-0 bg-white z-[9999] opacity-0 pointer-events-none" aria-hidden="true"></div>
-        <div id="print-area" className="print-only"><div id="print-area-content" style={{ width: '210mm' }}>{autoDownload === 'key' ? renderAnswerKeyContent() : renderPrintContent()}</div></div>
+        <div id="print-area" className="print-only"><div id="print-area-content" className="print-content-container" style={{ width: '210mm' }}>{autoDownload === 'key' ? renderAnswerKeyContent() : renderPrintContent()}</div></div>
       </>
     );
   }
@@ -911,7 +939,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     <>
       {/* Hidden Print Area for PDF Generation */}
       <div id="print-area" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none print-only">
-        <div id="print-area-content" style={{ width: '210mm' }}>
+        <div id="print-area-content" className="print-content-container" style={{ width: '210mm' }}>
           {previewMode === 'key' ? renderAnswerKeyContent() : renderPrintContent()}
         </div>
       </div>
@@ -968,7 +996,14 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
             <div className="p-4 border-t bg-white flex justify-end gap-3">
               <button onClick={() => setShowPreviewModal(false)} className="px-4 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-lg">Close</button>
               <button onClick={() => { setShowPreviewModal(false); handleDownloadPDF(previewMode); }} className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg flex items-center gap-2">
-                <i className="fas fa-download"></i> Download This View
+                <i className="fas fa-download"></i> Standard Download
+              </button>
+              <button
+                onClick={() => handleNativePrint(previewMode)}
+                className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg flex items-center gap-2"
+                title="Recommended for Hindi/Punjabi/Sanskrit - Clearer Text"
+              >
+                <i className="fas fa-print"></i> High Quality PDF
               </button>
             </div>
           </div>
@@ -1205,8 +1240,9 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
                   <div className="flex gap-4">
                     {!readOnly && <button onClick={handleSavePaper} className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 shadow-lg"><i className="fas fa-save mr-2"></i> Save Paper</button>}
                     <button onClick={() => { setPreviewMode('paper'); setShowPreviewModal(true); }} className="bg-purple-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-purple-700 shadow-lg"><i className="fas fa-eye mr-2"></i> Preview</button>
-                    <button onClick={() => handleDownloadPDF('paper')} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 shadow-lg"><i className="fas fa-file-pdf mr-2"></i> Download PDF</button>
-                    <button onClick={() => handleDownloadPDF('key')} className="bg-gray-800 text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-900 shadow-lg"><i className="fas fa-key mr-2"></i> Download Answer Key</button>
+                    <button onClick={() => handleDownloadPDF('paper')} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 shadow-lg text-sm" title="Standard Download"><i className="fas fa-file-pdf"></i> PDF</button>
+                    <button onClick={() => handleNativePrint('paper')} className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 shadow-lg text-sm" title="Higher quality text - recommended for Hindi"><i className="fas fa-print"></i> High Quality PDF</button>
+                    <button onClick={() => handleDownloadPDF('key')} className="bg-gray-800 text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-900 shadow-lg text-sm"><i className="fas fa-key"></i> Key</button>
                   </div>
                 </div>
               </div>
