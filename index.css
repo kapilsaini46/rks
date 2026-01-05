@@ -32,10 +32,10 @@
         box-shadow: none !important;
     }
 
-    /* Remove browser headers/footers by setting page margin to 0 */
+    /* Ensure safe margins so content isn't cut off on Page 2+ */
     @page {
         size: auto;
-        margin: 0mm;
+        margin: 10mm;
     }
 
     /* Hide scrollbars during print */

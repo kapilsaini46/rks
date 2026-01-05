@@ -823,7 +823,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
         {sections.map((section) => (
           <div key={section.id} className="mb-3">
             {section.title && section.title.trim() && (
-              <div className="text-center mb-2 border-b border-gray-400 pb-1"><h3 className="uppercase text-lg font-bold whitespace-pre-wrap"><MathText text={section.title} /></h3></div>
+              <div className="text-center mb-2 border-b border-gray-400 pb-1 break-after-avoid" style={{ breakAfter: 'avoid', pageBreakAfter: 'avoid' }}><h3 className="uppercase text-lg font-bold whitespace-pre-wrap"><MathText text={section.title} /></h3></div>
             )}
             <div className="space-y-1">
               {section.questions.map((q) => {
