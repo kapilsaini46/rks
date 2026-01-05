@@ -165,8 +165,10 @@ const MathText: React.FC<{ text: string }> = ({ text }) => {
     setParts(renderedParts);
   }, [text, katexLoaded]);
 
-  return <span className="math-content inline-block max-w-full break-words">{parts.length > 0 ? parts : text}</span>;
+  return <span className="math-content inline max-w-full break-words">{parts.length > 0 ? parts : text}</span>;
 };
+
+
 
 const ResizableImage: React.FC<{
   src: string; initialWidth?: number; onResize: (width: number) => void; onRemove: () => void; readOnly?: boolean;
@@ -768,8 +770,13 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     return (
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold uppercase mb-1 whitespace-pre-wrap">{meta.schoolName}</h1>
-        <h2 className="text-xl font-bold uppercase mb-2 underline whitespace-pre-wrap">{meta.title}</h2>
-        <div className="border-t-2 border-b-2 border-black py-1 flex justify-between items-center text-sm font-bold uppercase">
+        <h2 className="text-xl font-bold uppercase mb-2 whitespace-pre-wrap">{meta.title}</h2>
+
+        <div className="font-bold uppercase mt-1">
+          {t.subject}: {displaySubject}
+        </div>
+
+        <div className="border-t-2 border-b-2 border-black py-1 flex justify-between items-center text-sm font-bold uppercase mt-1">
           <div className="w-1/3 text-left">
             <span>{t.time}: {meta.duration}</span>
           </div>
@@ -782,9 +789,6 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
             <span>{t.maxMarks}: {calculateTotalMarks()}</span>
           </div>
         </div>
-        <div className="font-bold uppercase mt-1 border-b-2 border-black pb-1">
-          {t.subject}: {displaySubject}
-        </div>
       </div>
     );
   };
@@ -792,12 +796,30 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
 
   const renderPrintContent = () => {
     let printViewQuestionCounter = 0;
+    const hasARQuestions = sections.some(s => s.questions.some(q => q.type === QuestionType.ASSERTION_REASON));
+
     return (
       <div className="bg-white text-black w-[210mm] min-h-[297mm] text-base leading-snug box-border shadow-none break-words" style={{ padding: '0.5in' }}>
         {renderHeader()}
-        {meta.generalInstructions && meta.generalInstructions.trim() && (
-          <div className="mb-1 text-sm"><h3 className="font-bold underline mb-1 uppercase">{t.generalInstructions}:</h3><p className="whitespace-pre-wrap leading-snug">{meta.generalInstructions}</p></div>
+
+        {/* General Instructions + AR Instructions */}
+        {(meta.generalInstructions?.trim() || hasARQuestions) && (
+          <div className="mb-4 text-sm">
+            <h3 className="font-bold underline mb-1 uppercase">{t.generalInstructions}:</h3>
+            {meta.generalInstructions && <p className="whitespace-pre-wrap leading-snug mb-2">{meta.generalInstructions}</p>}
+
+            {hasARQuestions && (
+              <div className="text-xs italic pl-2 ml-1">
+                <p className="font-bold mb-1">For Assertion-Reason questions, select the correct option from the following:</p>
+                <p>(a) Both Assertion (A) and Reason (R) are true and Reason (R) is the correct explanation of Assertion (A).</p>
+                <p>(b) Both Assertion (A) and Reason (R) are true but Reason (R) is not the correct explanation of Assertion (A).</p>
+                <p>(c) Assertion (A) is true but Reason (R) is false.</p>
+                <p>(d) Assertion (A) is false but Reason (R) is true.</p>
+              </div>
+            )}
+          </div>
         )}
+
         {sections.map((section) => (
           <div key={section.id} className="mb-3">
             {section.title && section.title.trim() && (
@@ -806,44 +828,86 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
             <div className="space-y-1">
               {section.questions.map((q) => {
                 const qNum = ++printViewQuestionCounter;
-                return (
 
+                // Custom Rendering for Assertion Reason
+                let questionContent = <MathText text={q.text} />;
+                if (q.type === QuestionType.ASSERTION_REASON) {
+                  // Regex to find "Reason" followed by "(R)" with any spacing, case insensitive
+                  // We use capture group to keep the delimiter if needed, but split works fine
+                  const reasonRegex = /Reason\s*[:(]?\s*R?\s*[):]?\s*[:?]?/i;
+
+                  if (reasonRegex.test(q.text)) {
+                    const parts = q.text.split(reasonRegex);
+                    if (parts.length >= 2) {
+                      // Clean assertion: remove label "Assertion (A):" and also any markdown like "**"
+                      const assertionText = parts[0]
+                        .replace(/[*_]/g, '') // remove markdown bold/italic chars
+                        .replace(/Assertion\s*[:(]?\s*A?\s*[):]?\s*[:?]?/i, '')
+                        .trim();
+
+                      const reasonText = parts[1]
+                        .replace(/[*_]/g, '')
+                        .trim();
+
+                      questionContent = (
+                        <div className="flex flex-col gap-1 mt-1">
+                          <div><span className="font-bold">Assertion (A): </span><MathText text={assertionText} /></div>
+                          <div><span className="font-bold">Reason (R): </span><MathText text={reasonText} /></div>
+                        </div>
+                      );
+                    }
+                  }
+                }
+
+                return (
                   <div key={q.id} className="break-inside-avoid relative">
-                    <div className="flex gap-2"><span className="font-bold">{q.customNumber || `${t.questionPrefix}${qNum}${currentLang === 'English' ? '.' : ''}`}</span><div className="flex-1"><p className="whitespace-pre-wrap leading-snug text-justify break-words"><MathText text={q.text} /></p>
-                      {q.options && q.options.length > 0 && (
-                        <div className={`grid gap-x-8 gap-y-1 mt-1 ml-2 ${q.type === QuestionType.ASSERTION_REASON ? 'grid-cols-1' : getGridClass(q.options)}`}>
-                          {q.options.map((opt, oIdx) => (<div key={oIdx} className="flex gap-2"><span className="font-semibold">({String.fromCharCode(97 + oIdx)})</span><span><MathText text={cleanOptionText(opt)} /></span></div>))}
-                        </div>
-                      )}
-                      {q.type === QuestionType.MATCH && q.matchPairs && (
-                        <div className="mt-2 ml-2 w-full">
-                          <div className="font-bold mb-1">Match the Following:</div>
-                          <table className="w-full text-sm border-collapse">
-                            <thead>
-                              <tr>
-                                <th className="text-left p-1 w-1/2 border-b-2 border-black">Column A</th>
-                                <th className="text-left p-1 w-1/2 border-b-2 border-black">Column B</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {q.matchPairs.map((pair, idx) => (
-                                <tr key={idx}>
-                                  <td className="p-1 align-top border-b border-gray-100">
-                                    <span className="font-bold mr-2">{String.fromCharCode(65 + idx)}.</span>
-                                    <MathText text={cleanOptionText(pair.left)} />
-                                  </td>
-                                  <td className="p-1 align-top border-b border-gray-100">
-                                    <span className="font-bold mr-2">{idx + 1}.</span>
-                                    <MathText text={cleanOptionText(pair.right)} />
-                                  </td>
+                    <div className="flex gap-2">
+                      <span className="font-bold">{q.customNumber || `${t.questionPrefix}${qNum}${currentLang === 'English' ? '.' : ''}`}</span>
+                      <div className="flex-1">
+                        {q.type === QuestionType.ASSERTION_REASON ? (
+                          <div className="text-left leading-snug">{questionContent}</div>
+                        ) : (
+                          <p className="whitespace-pre-wrap leading-snug text-justify break-words">{questionContent}</p>
+                        )}
+
+                        {/* Show Options - EXCLUDE for AR questions */}
+                        {q.options && q.options.length > 0 && q.type !== QuestionType.ASSERTION_REASON && (
+                          <div className={`grid gap-x-8 gap-y-1 mt-1 ml-2 ${getGridClass(q.options)}`}>
+                            {q.options.map((opt, oIdx) => (<div key={oIdx} className="flex gap-2"><span className="font-semibold">({String.fromCharCode(97 + oIdx)})</span><span><MathText text={cleanOptionText(opt)} /></span></div>))}
+                          </div>
+                        )}
+
+                        {q.type === QuestionType.MATCH && q.matchPairs && (
+                          <div className="mt-2 ml-2 w-full">
+                            <div className="font-bold mb-1">Match the Following:</div>
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr>
+                                  <th className="text-left p-1 w-1/2 border-b-2 border-black">Column A</th>
+                                  <th className="text-left p-1 w-1/2 border-b-2 border-black">Column B</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      {q.imageUrl && (<div className="mt-2 flex justify-center"><ResizableImage src={q.imageUrl} initialWidth={q.imageWidth} onResize={() => { }} onRemove={() => { }} readOnly /></div>)}
-                    </div><span className="font-bold text-sm w-8 text-right align-top">[{q.marks}]</span></div>
+                              </thead>
+                              <tbody>
+                                {q.matchPairs.map((pair, idx) => (
+                                  <tr key={idx}>
+                                    <td className="p-1 align-top border-b border-gray-100">
+                                      <span className="font-bold mr-2">{String.fromCharCode(65 + idx)}.</span>
+                                      <MathText text={cleanOptionText(pair.left)} />
+                                    </td>
+                                    <td className="p-1 align-top border-b border-gray-100">
+                                      <span className="font-bold mr-2">{idx + 1}.</span>
+                                      <MathText text={cleanOptionText(pair.right)} />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        {q.imageUrl && (<div className="mt-2 flex justify-center"><ResizableImage src={q.imageUrl} initialWidth={q.imageWidth} onResize={() => { }} onRemove={() => { }} readOnly /></div>)}
+                      </div>
+                      <span className="font-bold text-sm w-8 text-right align-top">[{q.marks}]</span>
+                    </div>
                   </div>
                 );
               })}

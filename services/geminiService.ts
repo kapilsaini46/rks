@@ -94,6 +94,8 @@ export const generateQuestionsWithAI = async (
       Assertion (A): [assertion statement]
       Reason (R): [reason statement]
       
+      IMPORTANT: Do NOT use markdown bolding (e.g. **Assertion**) in the 'text' field. Keep it plain text.
+      
       Also, you MUST populate the 'options' field with these exact 4 options:
       (A) Both Assertion (A) and Reason (R) are true and Reason (R) is the correct explanation of Assertion (A).
       (B) Both Assertion (A) and Reason (R) are true but Reason (R) is not the correct explanation of Assertion (A).
