@@ -349,6 +349,15 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
     }
   };
 
+
+  const handleDeleteFolder = async (email: string) => {
+    if (window.confirm(`Are you sure you want to delete ALL papers for user ${email}? This cannot be undone.`)) {
+      await StorageService.deletePapersByUser(email);
+      await refreshData();
+    }
+  };
+
+
   const handleDeleteSubject = async (subject: string) => {
     if (window.confirm(`Delete Subject ${subject} from Class ${selectedCurriculumClass}?`)) {
       await StorageService.deleteSubject(selectedCurriculumClass, subject);
@@ -616,7 +625,14 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
                     <i className="fas fa-folder text-6xl text-yellow-500 mb-4 group-hover:scale-110 transition-transform"></i>
                     <h3 className="font-bold text-gray-800 text-lg mb-1">{getFolderName(email)}</h3>
                     <p className="text-sm text-gray-500">{userPapers.length} Papers</p>
-                    <p className="text-xs text-gray-400 mt-2">{email}</p>
+                    <p className="text-xs text-gray-400 mt-2 mb-3">{email}</p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFolder(email); }}
+                      className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded text-xs border border-red-200"
+                      title="Delete Entire Folder"
+                    >
+                      <i className="fas fa-trash mr-1"></i> Delete Folder
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1000,6 +1016,30 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
           </div>
         )
       }
+
+      {/* Delete Paper Modal */}
+      {paperToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-6 rounded-lg max-w-sm w-full">
+            <h3 className="text-xl font-bold mb-4 text-red-600">Delete Paper?</h3>
+            <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{paperToDelete.title}</span>? This cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setPaperToDelete(null)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!paperToDelete) return;
+                  await StorageService.deletePaper(paperToDelete.id);
+                  setPaperToDelete(null);
+                  refreshData();
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

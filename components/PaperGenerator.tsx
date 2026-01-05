@@ -703,7 +703,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
         margin: 0,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, x: 0, y: 0, scrollX: 0, scrollY: 0, windowWidth: 850, logging: false },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true, x: 0, y: 0, scrollX: 0, scrollY: 0, windowWidth: 850, logging: false },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
       };
 

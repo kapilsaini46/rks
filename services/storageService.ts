@@ -213,6 +213,14 @@ export const StorageService = {
     }
   },
 
+  deletePapersByUser: async (email: string) => {
+    if (isMock) return;
+    const q = query(collection(db, 'papers'), where("userEmail", "==", email));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
+  },
+
   // --- Tickets ---
   createTicket: async (ticket: any) => {
     if (isMock) return;
