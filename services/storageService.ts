@@ -55,23 +55,7 @@ export const StorageService = {
     await signOut(auth);
   },
 
-  // --- CMS Content Management ---
-  getAllContentPages: async (): Promise<ContentPage[]> => {
-    const snapshot = await getDocs(collection(db, CONTENT_COL));
-    return snapshot.docs.map(d => d.data() as ContentPage);
-  },
 
-  getPageContent: async (id: string): Promise<ContentPage | undefined> => {
-    if (isMock) return { id, title: "Mock Page", content: "This is mock content.", lastUpdated: new Date().toISOString() };
-    const docRef = doc(db, CONTENT_COL, id);
-    const snap = await getDoc(docRef);
-    return snap.exists() ? snap.data() as ContentPage : undefined;
-  },
-
-  savePageContent: async (page: ContentPage) => {
-    const docRef = doc(db, CONTENT_COL, page.id);
-    await setDoc(docRef, { ...page, lastUpdated: new Date().toISOString() });
-  },
 
   // --- Question Types Management ---
   getQuestionTypes: async (): Promise<string[]> => {
@@ -207,22 +191,33 @@ export const StorageService = {
   },
 
   // --- Papers ---
-  const newPaper = {
-    ...paper,
-    visibleToTeacher: true,
-    visibleToAdmin: true,
-    editCount: 0,
-    downloadCount: 0
-  };
-  await setDoc(docRef, newPaper);
-}
+  savePaper: async (paper: QuestionPaper) => {
+    if (isMock) {
+      console.log("Mock save paper", paper);
+      return;
+    }
+    const docRef = doc(db, PAPERS_COL, paper.id);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      await updateDoc(docRef, { ...paper });
+    } else {
+      const newPaper = {
+        ...paper,
+        visibleToTeacher: true,
+        visibleToAdmin: true,
+        editCount: 0,
+        downloadCount: 0
+      };
+      await setDoc(docRef, newPaper);
+    }
   },
 
-// --- Tickets ---
-createTicket: async (ticket: any) => {
-  if (isMock) return;
-  await setDoc(doc(db, 'tickets', ticket.id), ticket);
-},
+  // --- Tickets ---
+  createTicket: async (ticket: any) => {
+    if (isMock) return;
+    await setDoc(doc(db, 'tickets', ticket.id), ticket);
+  },
 
   getTicketsByUser: async (email: string): Promise<any[]> => {
     if (isMock) return [];
@@ -231,283 +226,283 @@ createTicket: async (ticket: any) => {
     return snapshot.docs.map(d => d.data());
   },
 
-    getAllTickets: async (): Promise<any[]> => {
-      if (isMock) return [];
-      const snapshot = await getDocs(collection(db, 'tickets'));
-      return snapshot.docs.map(d => d.data());
-    },
+  getAllTickets: async (): Promise<any[]> => {
+    if (isMock) return [];
+    const snapshot = await getDocs(collection(db, 'tickets'));
+    return snapshot.docs.map(d => d.data());
+  },
 
-      updateTicket: async (ticket: any) => {
-        if (isMock) return;
-        await setDoc(doc(db, 'tickets', ticket.id), ticket);
+  updateTicket: async (ticket: any) => {
+    if (isMock) return;
+    await setDoc(doc(db, 'tickets', ticket.id), ticket);
+  },
+
+  // --- CMS Content Management ---
+  getAllContentPages: async (): Promise<ContentPage[]> => {
+    const snapshot = await getDocs(collection(db, CONTENT_COL));
+    return snapshot.docs.map(d => d.data() as ContentPage);
+  },
+
+  getPageContent: async (id: string): Promise<ContentPage | undefined> => {
+    if (isMock) return { id, title: "Mock Page", content: "That is mock content.", lastUpdated: new Date().toISOString() };
+    const docRef = doc(db, CONTENT_COL, id);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      return snap.data() as ContentPage;
+    }
+
+    // Default Content for Play Store Policy compliance
+    const defaultContent: Record<string, any> = {
+      'privacy': {
+        title: "Privacy Policy",
+        content: "1. Data Collection: We collect email, name, and basic profile info.\n2. Usage: To generate question papers.\n3. Third Party: We use Razorpay for payments and Firebase for storage.\n\n(Edit this in Admin Panel)"
       },
-
-        // --- CMS Content Management ---
-        getAllContentPages: async (): Promise<ContentPage[]> => {
-          const snapshot = await getDocs(collection(db, CONTENT_COL));
-          return snapshot.docs.map(d => d.data() as ContentPage);
-        },
-
-          getPageContent: async (id: string): Promise<ContentPage | undefined> => {
-            if (isMock) return { id, title: "Mock Page", content: "That is mock content.", lastUpdated: new Date().toISOString() };
-            const docRef = doc(db, CONTENT_COL, id);
-            const snap = await getDoc(docRef);
-
-            if (snap.exists()) {
-              return snap.data() as ContentPage;
-            }
-
-            // Default Content for Play Store Policy compliance
-            const defaultContent: Record<string, any> = {
-              'privacy': {
-                title: "Privacy Policy",
-                content: "1. Data Collection: We collect email, name, and basic profile info.\n2. Usage: To generate question papers.\n3. Third Party: We use Razorpay for payments and Firebase for storage.\n\n(Edit this in Admin Panel)"
-              },
-              'terms': {
-                title: "Terms & Conditions",
-                content: "1. Usage: Personal use only for Free/Starter plans.\n2. Refund: No refunds after paper generation.\n3. Content: Generated content is for educational use.\n\n(Edit this in Admin Panel)"
-              },
-              'refund': {
-                title: "Refund Policy",
-                content: "No refunds are processed once a subscription is active or a paper has been generated. Contact support for exceptional cases."
-              },
-              'about': {
-                title: "About Us",
-                content: "RKS Question Paper Maker helps teachers generate exam papers in minutes using AI."
-              }
-            };
-
-            if (defaultContent[id]) {
-              return {
-                id,
-                title: defaultContent[id].title,
-                content: defaultContent[id].content,
-                lastUpdated: new Date().toISOString()
-              };
-            }
-
-            return undefined;
-          },
-
-            getPapersByUser: async (email: string): Promise<QuestionPaper[]> => {
-              if (isMock) return [];
-              const q = query(collection(db, PAPERS_COL), where("createdBy", "==", email));
-              const snapshot = await getDocs(q);
-              const papers = snapshot.docs.map(d => d.data() as QuestionPaper);
-              return papers.filter(p => p.visibleToTeacher !== false);
-            },
-
-              getAllPapers: async (): Promise<QuestionPaper[]> => {
-                const snapshot = await getDocs(collection(db, PAPERS_COL));
-                const papers = snapshot.docs.map(d => d.data() as QuestionPaper);
-                return papers.filter(p => p.visibleToAdmin !== false);
-              },
-
-                deletePaper: async (id: string, target: 'TEACHER' | 'ADMIN' | 'PERMANENT' = 'PERMANENT') => {
-                  if (isMock) {
-                    console.log("Mock delete paper", id);
-                    return;
-                  }
-                  const docRef = doc(db, PAPERS_COL, id);
-
-                  if (target === 'PERMANENT') {
-                    await deleteDoc(docRef);
-                  } else {
-                    if (target === 'TEACHER') {
-                      await updateDoc(docRef, { visibleToTeacher: false });
-                    } else if (target === 'ADMIN') {
-                      await updateDoc(docRef, { visibleToAdmin: false });
-                    }
-                  }
-                },
-
-                  // --- Sample Patterns ---
-                  saveSamplePattern: async (pattern: SamplePattern) => {
-                    // Generate a unique ID based on class/subject or random
-                    const id = `${pattern.classNum}_${pattern.subject}`.replace(/\s+/g, '_');
-                    await setDoc(doc(db, PATTERNS_COL, id), pattern);
-                  },
-
-                    getSamplePattern: async (classNum: string, subject: string): Promise<SamplePattern | undefined> => {
-                      const id = `${classNum}_${subject}`.replace(/\s+/g, '_');
-                      const docRef = doc(db, PATTERNS_COL, id);
-                      const snap = await getDoc(docRef);
-                      return snap.exists() ? snap.data() as SamplePattern : undefined;
-                    },
-
-                      getAdminPattern: async (classNum: string, subject: string): Promise<QuestionPaper | undefined> => {
-                        // This is complex in Firestore without composite index. 
-                        // Simplified: Get all papers for class/subject, then filter by admin role.
-                        // Better: Store "role" in paper or trust the "createdBy" check.
-
-                        const q = query(
-                          collection(db, PAPERS_COL),
-                          where("classNum", "==", classNum),
-                          where("subject", "==", subject)
-                        );
-                        const snapshot = await getDocs(q);
-                        const papers = snapshot.docs.map(d => d.data() as QuestionPaper);
-
-                        // We need to know which emails are admins. 
-                        // Optimization: Just check if the paper was created by MOCK_ADMIN_EMAIL or check user role.
-                        // For now, let's fetch all users to find admins (inefficient but works for small app)
-                        const users = await StorageService.getAllUsers();
-                        const adminEmails = users.filter(u => u.role === UserRole.ADMIN).map(u => u.email);
-
-                        const adminPapers = papers.filter(p =>
-                          adminEmails.includes(p.createdBy) &&
-                          p.visibleToAdmin !== false
-                        );
-
-                        return adminPapers.length > 0 ? adminPapers[adminPapers.length - 1] : undefined;
-                      },
-
-                        getStyleContext: async (classNum: string, subject: string): Promise<{
-                          text: string,
-                          attachment?: { data: string, mimeType: string },
-                          syllabusAttachment?: { data: string, mimeType: string }
-                        }> => {
-                          const pattern = await StorageService.getSamplePattern(classNum, subject);
-                          if (pattern) {
-                            let text = "";
-                            if (pattern.content.trim().length > 0) {
-                              text += `Use the following sample paper text as a strict style and difficulty guide:\n\n${pattern.content}\n`;
-                            }
-                            if (pattern.attachment) {
-                              text += `\nRefer to the attached Sample Paper document for the exact question style, difficulty, and format. Mimic it closely.`;
-                            }
-                            if (pattern.syllabusAttachment) {
-                              text += `\nRefer to the attached Syllabus/Blueprint document. Ensure all generated questions strictly fall within the topics and scope defined in this syllabus.`;
-                            }
-
-                            return {
-                              text,
-                              attachment: pattern.attachment,
-                              syllabusAttachment: pattern.syllabusAttachment
-                            };
-                          }
-
-                          if (isMock) return { text: "" };
-                          // Fallback
-                          const adminPaper = await StorageService.getAdminPattern(classNum, subject);
-                          if (adminPaper) {
-                            const sampleQs = adminPaper.sections.flatMap(s => s.questions).slice(0, 10);
-                            const text = `Follow the style of these previous questions generated by admin:\n` +
-                              sampleQs.map(q => `- (${q.type}) ${q.text}`).join('\n');
-                            return { text };
-                          }
-
-                          return { text: "" };
-                        },
-
-                          // --- Subscriptions ---
-                          async recordSubscriptionPayment(user: User, plan: SubscriptionPlan, paymentId: string, amount: number) {
-  try {
-    // 1. Update User Status
-    const userRef = doc(db, USERS_COL, user.email);
-    const now = new Date();
-    const nowIso = now.toISOString();
-
-    // Calculate expiry based on plan validity
-    const validityDays = PRICING[plan].validityDays || 30;
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + validityDays);
-
-    const updatedUser: Partial<User> = {
-      subscriptionPlan: plan,
-      subscriptionStatus: SubscriptionStatus.ACTIVE,
-      // Reset credits based on plan
-      credits: PRICING[plan].papers,
-      subscriptionExpiryDate: expiryDate.toISOString()
+      'terms': {
+        title: "Terms & Conditions",
+        content: "1. Usage: Personal use only for Free/Starter plans.\n2. Refund: No refunds after paper generation.\n3. Content: Generated content is for educational use.\n\n(Edit this in Admin Panel)"
+      },
+      'refund': {
+        title: "Refund Policy",
+        content: "No refunds are processed once a subscription is active or a paper has been generated. Contact support for exceptional cases."
+      },
+      'about': {
+        title: "About Us",
+        content: "RKS Question Paper Maker helps teachers generate exam papers in minutes using AI."
+      }
     };
-    await updateDoc(userRef, updatedUser);
 
-    // 2. Record Transaction in Requests (for Admin Revenue)
-    // We start ID with 'pay_' to distinguish from manual requests
-    const reqId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const request: PaymentRequest = {
-      id: reqId,
-      userEmail: user.email,
-      plan: plan,
-      amount: amount,
-      proofUrl: paymentId, // Storing Payment ID in proofUrl field for reference
-      status: SubscriptionStatus.ACTIVE,
-      date: nowIso
+    if (defaultContent[id]) {
+      return {
+        id,
+        title: defaultContent[id].title,
+        content: defaultContent[id].content,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+
+    return undefined;
+  },
+
+  getPapersByUser: async (email: string): Promise<QuestionPaper[]> => {
+    if (isMock) return [];
+    const q = query(collection(db, PAPERS_COL), where("createdBy", "==", email));
+    const snapshot = await getDocs(q);
+    const papers = snapshot.docs.map(d => d.data() as QuestionPaper);
+    return papers.filter(p => p.visibleToTeacher !== false);
+  },
+
+  getAllPapers: async (): Promise<QuestionPaper[]> => {
+    const snapshot = await getDocs(collection(db, PAPERS_COL));
+    const papers = snapshot.docs.map(d => d.data() as QuestionPaper);
+    return papers.filter(p => p.visibleToAdmin !== false);
+  },
+
+  deletePaper: async (id: string, target: 'TEACHER' | 'ADMIN' | 'PERMANENT' = 'PERMANENT') => {
+    if (isMock) {
+      console.log("Mock delete paper", id);
+      return;
+    }
+    const docRef = doc(db, PAPERS_COL, id);
+
+    if (target === 'PERMANENT') {
+      await deleteDoc(docRef);
+    } else {
+      if (target === 'TEACHER') {
+        await updateDoc(docRef, { visibleToTeacher: false });
+      } else if (target === 'ADMIN') {
+        await updateDoc(docRef, { visibleToAdmin: false });
+      }
+    }
+  },
+
+  // --- Sample Patterns ---
+  saveSamplePattern: async (pattern: SamplePattern) => {
+    // Generate a unique ID based on class/subject or random
+    const id = `${pattern.classNum}_${pattern.subject}`.replace(/\s+/g, '_');
+    await setDoc(doc(db, PATTERNS_COL, id), pattern);
+  },
+
+  getSamplePattern: async (classNum: string, subject: string): Promise<SamplePattern | undefined> => {
+    const id = `${classNum}_${subject}`.replace(/\s+/g, '_');
+    const docRef = doc(db, PATTERNS_COL, id);
+    const snap = await getDoc(docRef);
+    return snap.exists() ? snap.data() as SamplePattern : undefined;
+  },
+
+  getAdminPattern: async (classNum: string, subject: string): Promise<QuestionPaper | undefined> => {
+    // This is complex in Firestore without composite index. 
+    // Simplified: Get all papers for class/subject, then filter by admin role.
+    // Better: Store "role" in paper or trust the "createdBy" check.
+
+    const q = query(
+      collection(db, PAPERS_COL),
+      where("classNum", "==", classNum),
+      where("subject", "==", subject)
+    );
+    const snapshot = await getDocs(q);
+    const papers = snapshot.docs.map(d => d.data() as QuestionPaper);
+
+    // We need to know which emails are admins. 
+    // Optimization: Just check if the paper was created by MOCK_ADMIN_EMAIL or check user role.
+    // For now, let's fetch all users to find admins (inefficient but works for small app)
+    const users = await StorageService.getAllUsers();
+    const adminEmails = users.filter(u => u.role === UserRole.ADMIN).map(u => u.email);
+
+    const adminPapers = papers.filter(p =>
+      adminEmails.includes(p.createdBy) &&
+      p.visibleToAdmin !== false
+    );
+
+    return adminPapers.length > 0 ? adminPapers[adminPapers.length - 1] : undefined;
+  },
+
+  getStyleContext: async (classNum: string, subject: string): Promise<{
+    text: string,
+    attachment?: { data: string, mimeType: string },
+    syllabusAttachment?: { data: string, mimeType: string }
+  }> => {
+    const pattern = await StorageService.getSamplePattern(classNum, subject);
+    if (pattern) {
+      let text = "";
+      if (pattern.content.trim().length > 0) {
+        text += `Use the following sample paper text as a strict style and difficulty guide:\n\n${pattern.content}\n`;
+      }
+      if (pattern.attachment) {
+        text += `\nRefer to the attached Sample Paper document for the exact question style, difficulty, and format. Mimic it closely.`;
+      }
+      if (pattern.syllabusAttachment) {
+        text += `\nRefer to the attached Syllabus/Blueprint document. Ensure all generated questions strictly fall within the topics and scope defined in this syllabus.`;
+      }
+
+      return {
+        text,
+        attachment: pattern.attachment,
+        syllabusAttachment: pattern.syllabusAttachment
+      };
+    }
+
+    if (isMock) return { text: "" };
+    // Fallback
+    const adminPaper = await StorageService.getAdminPattern(classNum, subject);
+    if (adminPaper) {
+      const sampleQs = adminPaper.sections.flatMap(s => s.questions).slice(0, 10);
+      const text = `Follow the style of these previous questions generated by admin:\n` +
+        sampleQs.map(q => `- (${q.type}) ${q.text}`).join('\n');
+      return { text };
+    }
+
+    return { text: "" };
+  },
+
+  // --- Subscriptions ---
+  async recordSubscriptionPayment(user: User, plan: SubscriptionPlan, paymentId: string, amount: number) {
+    try {
+      // 1. Update User Status
+      const userRef = doc(db, USERS_COL, user.email);
+      const now = new Date();
+      const nowIso = now.toISOString();
+
+      // Calculate expiry based on plan validity
+      const validityDays = PRICING[plan].validityDays || 30;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + validityDays);
+
+      const updatedUser: Partial<User> = {
+        subscriptionPlan: plan,
+        subscriptionStatus: SubscriptionStatus.ACTIVE,
+        // Reset credits based on plan
+        credits: PRICING[plan].papers,
+        subscriptionExpiryDate: expiryDate.toISOString()
+      };
+      await updateDoc(userRef, updatedUser);
+
+      // 2. Record Transaction in Requests (for Admin Revenue)
+      // We start ID with 'pay_' to distinguish from manual requests
+      const reqId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const request: PaymentRequest = {
+        id: reqId,
+        userEmail: user.email,
+        plan: plan,
+        amount: amount,
+        proofUrl: paymentId, // Storing Payment ID in proofUrl field for reference
+        status: SubscriptionStatus.ACTIVE,
+        date: nowIso
+      };
+      await setDoc(doc(db, REQUESTS_COL, reqId), request);
+
+      return true;
+    } catch (error) {
+      console.error("Error recording payment:", error);
+      throw error;
+    }
+  },
+
+  createPaymentRequest: async (email: string, plan: SubscriptionPlan, proofUrl: string) => {
+    if (isMock) {
+      console.log("Mock create payment request", { email, plan, proofUrl });
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return;
+    }
+    const newReq: PaymentRequest = {
+      id: Date.now().toString(),
+      userEmail: email,
+      plan,
+      amount: PRICING[plan].price,
+      proofUrl,
+      status: SubscriptionStatus.PENDING,
+      date: new Date().toISOString()
     };
-    await setDoc(doc(db, REQUESTS_COL, reqId), request);
+    await setDoc(doc(db, REQUESTS_COL, newReq.id), newReq);
 
-    return true;
-  } catch (error) {
-    console.error("Error recording payment:", error);
-    throw error;
-  }
-},
-
-createPaymentRequest: async (email: string, plan: SubscriptionPlan, proofUrl: string) => {
-  if (isMock) {
-    console.log("Mock create payment request", { email, plan, proofUrl });
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return;
-  }
-  const newReq: PaymentRequest = {
-    id: Date.now().toString(),
-    userEmail: email,
-    plan,
-    amount: PRICING[plan].price,
-    proofUrl,
-    status: SubscriptionStatus.PENDING,
-    date: new Date().toISOString()
-  };
-  await setDoc(doc(db, REQUESTS_COL, newReq.id), newReq);
-
-  const user = await StorageService.getUser(email);
-  if (user) {
-    user.subscriptionStatus = SubscriptionStatus.PENDING;
-    await StorageService.updateUser(user);
-  }
-},
+    const user = await StorageService.getUser(email);
+    if (user) {
+      user.subscriptionStatus = SubscriptionStatus.PENDING;
+      await StorageService.updateUser(user);
+    }
+  },
 
   getAllRequests: async (): Promise<PaymentRequest[]> => {
     const snapshot = await getDocs(collection(db, REQUESTS_COL));
     return snapshot.docs.map(d => d.data() as PaymentRequest);
   },
 
-    processRequest: async (reqId: string, approved: boolean) => {
-      const docRef = doc(db, REQUESTS_COL, reqId);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return;
+  processRequest: async (reqId: string, approved: boolean) => {
+    const docRef = doc(db, REQUESTS_COL, reqId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return;
 
-      const request = snap.data() as PaymentRequest;
-      request.status = approved ? SubscriptionStatus.ACTIVE : SubscriptionStatus.REJECTED;
-      await setDoc(docRef, request);
+    const request = snap.data() as PaymentRequest;
+    request.status = approved ? SubscriptionStatus.ACTIVE : SubscriptionStatus.REJECTED;
+    await setDoc(docRef, request);
 
-      if (approved) {
-        const user = await StorageService.getUser(request.userEmail);
-        if (user) {
-          user.subscriptionPlan = request.plan;
-          user.subscriptionStatus = SubscriptionStatus.ACTIVE;
-          user.credits += PRICING[request.plan].papers;
+    if (approved) {
+      const user = await StorageService.getUser(request.userEmail);
+      if (user) {
+        user.subscriptionPlan = request.plan;
+        user.subscriptionStatus = SubscriptionStatus.ACTIVE;
+        user.credits += PRICING[request.plan].papers;
 
-          const now = new Date();
-          if (request.plan === SubscriptionPlan.STARTER) {
-            now.setDate(now.getDate() + 30);
-          } else if (request.plan === SubscriptionPlan.PROFESSIONAL) {
-            now.setDate(now.getDate() + 60);
-          } else if (request.plan === SubscriptionPlan.PREMIUM) {
-            now.setDate(now.getDate() + 180);
-          }
-
-          user.subscriptionExpiryDate = now.toISOString();
-
-          await StorageService.updateUser(user);
+        const now = new Date();
+        if (request.plan === SubscriptionPlan.STARTER) {
+          now.setDate(now.getDate() + 30);
+        } else if (request.plan === SubscriptionPlan.PROFESSIONAL) {
+          now.setDate(now.getDate() + 60);
+        } else if (request.plan === SubscriptionPlan.PREMIUM) {
+          now.setDate(now.getDate() + 180);
         }
-      } else {
-        const user = await StorageService.getUser(request.userEmail);
-        if (user) {
-          user.subscriptionStatus = SubscriptionStatus.REJECTED;
-          await StorageService.updateUser(user);
-        }
+
+        user.subscriptionExpiryDate = now.toISOString();
+
+        await StorageService.updateUser(user);
+      }
+    } else {
+      const user = await StorageService.getUser(request.userEmail);
+      if (user) {
+        user.subscriptionStatus = SubscriptionStatus.REJECTED;
+        await StorageService.updateUser(user);
       }
     }
+  }
 };
