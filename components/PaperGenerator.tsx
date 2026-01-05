@@ -685,69 +685,48 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
       setInternalExistingPaper(newPaper);
     }
 
-    const element = document.getElementById('print-area-content');
-    if (!element) return;
-
-    // element is already in DOM but hidden via CSS class or parent
-    // We need to make sure it's visible for html2pdf but not to user if we can avoid it.
-    // Actually html2pdf works on hidden elements if we clone or if we handle it right.
-    // But easiest is to have a specific print container.
-
+    // Switch view mode and prepare for print
     setPreviewMode(type);
-    setIsGeneratingPdf(true);
+    setIsGeneratingPdf(true); // Can use this state to hide buttons in render
 
-    setTimeout(() => {
-      const sanitizedTitle = meta.title.replace(/[^a-zA-Z0-9-_]/g, '_');
-      const filename = `${sanitizedTitle}_${meta.classNum}_${meta.subject}${type === 'key' ? '_AnswerKey' : ''}.pdf`;
-      const opt = {
-        margin: 0,
-        filename: filename,
-        image: { type: 'jpeg', quality: 1.0 },
-        html2canvas: { scale: 3, useCORS: true, x: 0, y: 0, scrollX: 0, scrollY: 0, logging: false },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
-
-      const cleanup = async () => {
-        setIsGeneratingPdf(false);
-
-        const currentPaperId = internalExistingPaper?.id;
-
-        if (currentPaperId && !isAdmin && !autoDownload) {
-          const papers = await StorageService.getPapersByUser(userEmail);
-          const p = papers.find(p => p.id === currentPaperId);
-          if (p) {
-            const updatedPaper = { ...p, downloadCount: (p.downloadCount || 0) + 1 };
-            await StorageService.savePaper(updatedPaper);
-          }
+    // Updating download count
+    const updateStats = async () => {
+      const currentPaperId = internalExistingPaper?.id;
+      if (currentPaperId && !isAdmin && !autoDownload) {
+        const papers = await StorageService.getPapersByUser(userEmail);
+        const p = papers.find(p => p.id === currentPaperId);
+        if (p) {
+          const updatedPaper = { ...p, downloadCount: (p.downloadCount || 0) + 1 };
+          await StorageService.savePaper(updatedPaper);
         }
+      }
+    };
 
-        if (autoDownload) {
+    // Delay to allow React to render the correct mode (keys/questions) and hide buttons
+    setTimeout(async () => {
+      window.print();
+
+      // Post-print cleanup
+      await updateStats();
+      setIsGeneratingPdf(false);
+
+      if (autoDownload) {
+        onClose();
+        return;
+      }
+
+      if (type === 'key') {
+        if (downloadedFiles.paper) {
           onClose();
-          return;
-        }
-
-        if (type === 'key') {
-          if (downloadedFiles.paper) {
-            onClose();
-          } else {
-            setDownloadedFiles(prev => ({ ...prev, key: true }));
-          }
         } else {
-          if (downloadedFiles.key) {
-            onClose();
-          } else {
-            setDownloadedFiles(prev => ({ ...prev, paper: true }));
-          }
+          setDownloadedFiles(prev => ({ ...prev, key: true }));
         }
-      };
-
-      // @ts-ignore
-      if (window.html2pdf) {
-        // @ts-ignore
-        window.html2pdf().set(opt).from(element).save().then(cleanup).catch(cleanup);
       } else {
-        window.print();
-        cleanup();
+        if (downloadedFiles.key) {
+          onClose();
+        } else {
+          setDownloadedFiles(prev => ({ ...prev, paper: true }));
+        }
       }
     }, 500);
   };
@@ -903,7 +882,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     return (
       <>
         <div className="fixed inset-0 bg-white z-[9999] opacity-0 pointer-events-none" aria-hidden="true"></div>
-        <div id="print-area" className="print-only"><div id="print-area-content" className="print-content-container" style={{ width: '210mm' }}>{autoDownload === 'key' ? renderAnswerKeyContent() : renderPrintContent()}</div></div>
+        <div id="print-area" className="print-only"><div id="print-area-content" style={{ width: '210mm' }}>{autoDownload === 'key' ? renderAnswerKeyContent() : renderPrintContent()}</div></div>
       </>
     );
   }
@@ -912,7 +891,7 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
     <>
       {/* Hidden Print Area for PDF Generation */}
       <div id="print-area" className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none print-only">
-        <div id="print-area-content" className="print-content-container" style={{ width: '210mm' }}>
+        <div id="print-area-content" style={{ width: '210mm' }}>
           {previewMode === 'key' ? renderAnswerKeyContent() : renderPrintContent()}
         </div>
       </div>

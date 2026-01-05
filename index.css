@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    /* Target the PARENT container to override opacity-0 */
+    #print-area,
+    #print-area * {
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 9999 !important;
+        /* Ensure it's on top */
+    }
+
+    #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    #print-area-content {
+        /* Width is handled inline, but ensure margin works */
+        margin: 0 auto;
+        background: white;
+        box-shadow: none !important;
+    }
+
+    /* Remove browser headers/footers by setting page margin to 0 */
+    @page {
+        size: auto;
+        margin: 0mm;
+    }
+
+    /* Hide scrollbars during print */
+    ::-webkit-scrollbar {
+        display: none;
+    }
+}
