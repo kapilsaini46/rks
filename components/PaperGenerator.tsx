@@ -1004,8 +1004,8 @@ const PaperGenerator: React.FC<Props> = ({ userEmail, existingPaper: propExistin
                 <button onClick={() => setShowPreviewModal(false)} className="text-gray-500 hover:text-red-500 px-3"><i className="fas fa-times fa-lg"></i></button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-gray-100 p-8 flex justify-center">
-              <div className="bg-white shadow-lg scale-90 origin-top" style={{ width: '210mm', minHeight: '297mm' }}>
+            <div className="flex-1 overflow-auto bg-gray-100 p-4 md:p-8 flex">
+              <div className="bg-white shadow-lg scale-90 origin-top mx-auto shrink-0" style={{ width: '210mm', minHeight: '297mm' }}>
                 {previewMode === 'key' ? renderAnswerKeyContent() : renderPrintContent()}
               </div>
             </div>
