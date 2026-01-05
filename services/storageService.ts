@@ -252,23 +252,23 @@ export const StorageService = {
       return snap.data() as ContentPage;
     }
 
-    // Default Content for Play Store Policy compliance
+    // Default Content for Play Store Policy compliance (High Quality)
     const defaultContent: Record<string, any> = {
       'privacy': {
         title: "Privacy Policy",
-        content: "1. Data Collection: We collect email, name, and basic profile info.\n2. Usage: To generate question papers.\n3. Third Party: We use Razorpay for payments and Firebase for storage.\n\n(Edit this in Admin Panel)"
+        content: "Effective Date: January 1, 2026\n\n1. Information Collection\nWe collect information you provide directly to us, such as when you create an account, subscribe, or contact support. This includes your name, email address, and payment information logic (handled securely by Razorpay).\n\n2. Use of Information\nWe use your information to provide, maintain, and improve our services, specifically to generate question papers and manage your subscription.\n\n3. Data Sharing\nWe do not share your personal data with third parties except as necessary to provide the service (e.g., Firebase for hosting, Razorpay for payments).\n\n4. Data Security\nWe implement reasonable security measures to protect your information. However, no security system is impenetrable."
       },
       'terms': {
         title: "Terms & Conditions",
-        content: "1. Usage: Personal use only for Free/Starter plans.\n2. Refund: No refunds after paper generation.\n3. Content: Generated content is for educational use.\n\n(Edit this in Admin Panel)"
+        content: "1. Acceptance of Terms\nBy accessing and using this app, you accept and agree to be bound by these Terms and Conditions.\n\n2. User Accounts\nYou are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized use.\n\n3. Subscription & Payments\nPaid plans offer additional features. Payments are final and non-refundable except as per our Refund Policy.\n\n4. Content Usage\nThe question papers generated are for educational use. You retain rights to the specific compilations you create, but the underlying questions remain part of our database."
       },
       'refund': {
         title: "Refund Policy",
-        content: "No refunds are processed once a subscription is active or a paper has been generated. Contact support for exceptional cases."
+        content: "1. No Refunds Policy\nGenerally, all sales are final. We do not offer refunds for partial use or if you change your mind.\n\n2. Exceptions\nRefunds may be considered in cases of:\n- Double deduction of payment due to technical error.\n- Service unavailability for a prolonged period (>48 hours).\n\n3. Contacting Support\nIf you believe you have a valid claim for a refund, please contact our support team via the 'Contact Us' section."
       },
       'about': {
         title: "About Us",
-        content: "RKS Question Paper Maker helps teachers generate exam papers in minutes using AI."
+        content: "RKS Question Paper Maker is a premier tool designed to empower teachers.\n\nOur Mission:\nTo save teachers' time by automating the tedious task of setting question papers, allowing them to focus more on teaching and student interaction.\n\nFeatures:\n- AI-Powered Question Generation\n- CBSE Aligned Blueprints\n- Custom Branding for Schools\n\nContact: support@cbse-maker.com"
       }
     };
 
@@ -281,6 +281,41 @@ export const StorageService = {
       };
     }
 
+    return undefined;
+  },
+
+  // Helper to just get defaults (for Admin Reset)
+  getDefaultContentOrFetch: async (id: string): Promise<ContentPage | undefined> => {
+    // Re-using the logic above, but forcing default return if passed a specific flag,
+    // or just copy-pasting the default object here for simplicity/safety to ensure we get the FRESH copy.
+
+    const defaultContent: Record<string, any> = {
+      'privacy': {
+        title: "Privacy Policy",
+        content: "Effective Date: January 1, 2026\n\n1. Information Collection\nWe collect information you provide directly to us, such as when you create an account, subscribe, or contact support. This includes your name, email address, and payment information logic (handled securely by Razorpay).\n\n2. Use of Information\nWe use your information to provide, maintain, and improve our services, specifically to generate question papers and manage your subscription.\n\n3. Data Sharing\nWe do not share your personal data with third parties except as necessary to provide the service (e.g., Firebase for hosting, Razorpay for payments).\n\n4. Data Security\nWe implement reasonable security measures to protect your information. However, no security system is impenetrable."
+      },
+      'terms': {
+        title: "Terms & Conditions",
+        content: "1. Acceptance of Terms\nBy accessing and using this app, you accept and agree to be bound by these Terms and Conditions.\n\n2. User Accounts\nYou are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized use.\n\n3. Subscription & Payments\nPaid plans offer additional features. Payments are final and non-refundable except as per our Refund Policy.\n\n4. Content Usage\nThe question papers generated are for educational use. You retain rights to the specific compilations you create, but the underlying questions remain part of our database."
+      },
+      'refund': {
+        title: "Refund Policy",
+        content: "1. No Refunds Policy\nGenerally, all sales are final. We do not offer refunds for partial use or if you change your mind.\n\n2. Exceptions\nRefunds may be considered in cases of:\n- Double deduction of payment due to technical error.\n- Service unavailability for a prolonged period (>48 hours).\n\n3. Contacting Support\nIf you believe you have a valid claim for a refund, please contact our support team via the 'Contact Us' section."
+      },
+      'about': {
+        title: "About Us",
+        content: "RKS Question Paper Maker is a premier tool designed to empower teachers.\n\nOur Mission:\nTo save teachers' time by automating the tedious task of setting question papers, allowing them to focus more on teaching and student interaction.\n\nFeatures:\n- AI-Powered Question Generation\n- CBSE Aligned Blueprints\n- Custom Branding for Schools\n\nContact: support@cbse-maker.com"
+      }
+    };
+
+    if (defaultContent[id]) {
+      return {
+        id,
+        title: defaultContent[id].title,
+        content: defaultContent[id].content,
+        lastUpdated: new Date().toISOString()
+      };
+    }
     return undefined;
   },
 

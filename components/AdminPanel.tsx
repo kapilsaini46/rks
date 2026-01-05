@@ -308,6 +308,16 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
     alert("Page content saved successfully!");
   };
 
+  const handleResetContent = async () => {
+    if (window.confirm("Are you sure? This will overwrite the current content with the system default.")) {
+      const defaults = await StorageService.getDefaultContentOrFetch(selectedPageId);
+      if (defaults) {
+        setPageTitle(defaults.title);
+        setPageContent(defaults.content);
+      }
+    }
+  };
+
   // Curriculum Handlers
   const handleAddClass = async () => {
     if (!newClassInput.trim()) return;
@@ -473,7 +483,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* User Breakdown */}
-              <div className="border rounded-lg p-6">
+              <div className="border rounded-lg p-6 text-gray-800">
                 <h3 className="font-bold text-lg mb-4 text-gray-800">Users by Plan</h3>
                 <div className="space-y-3">
                   {Object.entries(stats.usersByPlan).map(([plan, count]) => (
@@ -919,71 +929,180 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
               <div className="flex justify-end">
                 <button
                   onClick={handleSaveContent}
-                  className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700"
+                  className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors flex justify-center items-center"
                 >
-                  Save Content
+                  <i className="fas fa-save mr-2"></i> Save Changes
                 </button>
               </div>
             </div>
           </div>
+          </div>
         )}
+
+      {activeTab === 'support' && <SupportTicketManager />}
+    </div>
+    
+      {/* Edit User Modal */ }
+  {
+    editingUser && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-6 rounded-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4">Edit User</h3>
+          <div className="space-y-3">
+            <div><label className="text-xs font-bold text-gray-500">Name</label><input className="w-full border p-2 rounded" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} /></div>
+            <div><label className="text-xs font-bold text-gray-500">Email</label><input className="w-full border p-2 rounded" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} /></div>
+            <div><label className="text-xs font-bold text-gray-500">Mobile</label><input className="w-full border p-2 rounded" value={editingUser.mobile} onChange={e => setEditingUser({ ...editingUser, mobile: e.target.value })} /></div>
+            <div><label className="text-xs font-bold text-gray-500">Credits</label><input type="number" className="w-full border p-2 rounded" value={editingUser.credits} onChange={e => setEditingUser({ ...editingUser, credits: parseInt(e.target.value) })} /></div>
+            <div>
+              <label className="text-xs font-bold text-gray-500">Plan</label>
+              <select className="w-full border p-2 rounded" value={editingUser.subscriptionPlan} onChange={e => setEditingUser({ ...editingUser, subscriptionPlan: e.target.value as SubscriptionPlan })}>
+                {Object.values(SubscriptionPlan).map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500">Role</label>
+              <select className="w-full border p-2 rounded" value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value as UserRole })}>
+                {Object.values(UserRole).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-gray-500">Cancel</button>
+            <button onClick={saveUserChanges} className="px-4 py-2 bg-blue-600 text-white rounded font-bold">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Create User Modal */ }
+  {
+    creatingUser && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-6 rounded-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4">Create New User</h3>
+          <div className="space-y-3">
+            <div><label className="text-xs font-bold text-gray-500">Name</label><input className="w-full border p-2 rounded" value={creatingUser.name} onChange={e => setCreatingUser({ ...creatingUser, name: e.target.value })} /></div>
+            <div><label className="text-xs font-bold text-gray-500">Email</label><input className="w-full border p-2 rounded" value={creatingUser.email} onChange={e => setCreatingUser({ ...creatingUser, email: e.target.value })} /></div>
+            <div><label className="text-xs font-bold text-gray-500">Password</label><input className="w-full border p-2 rounded" value={creatingUser.password} onChange={e => setCreatingUser({ ...creatingUser, password: e.target.value })} /></div>
+            <div><label className="text-xs font-bold text-gray-500">Mobile</label><input className="w-full border p-2 rounded" value={creatingUser.mobile} onChange={e => setCreatingUser({ ...creatingUser, mobile: e.target.value })} /></div>
+            <div>
+              <label className="text-xs font-bold text-gray-500">Role</label>
+              <select className="w-full border p-2 rounded" value={creatingUser.role} onChange={e => setCreatingUser({ ...creatingUser, role: e.target.value as UserRole })}>
+                {Object.values(UserRole).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={() => setCreatingUser(null)} className="px-4 py-2 text-gray-500">Cancel</button>
+            <button onClick={saveNewUser} className="px-4 py-2 bg-green-600 text-white rounded font-bold">Create User</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+    </div >
+  );
+};
+
+const SupportTicketManager = () => {
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [reply, setReply] = useState('');
+
+  const loadTickets = async () => {
+    const t = await StorageService.getAllTickets();
+    t.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setTickets(t);
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const handleReply = async () => {
+    if (!reply.trim()) return;
+    const updated = { ...selectedTicket, adminReply: reply, status: 'RESOLVED', updatedAt: new Date().toISOString() };
+    await StorageService.updateTicket(updated);
+    alert("Reply sent and ticket resolved.");
+    setReply('');
+    setSelectedTicket(null);
+    loadTickets();
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+      <div className="border rounded-lg overflow-hidden flex flex-col">
+        <div className="bg-gray-100 p-3 font-bold border-b flex justify-between items-center">
+          <span>All Tickets</span>
+          <button onClick={loadTickets} className="text-blue-600 hover:text-blue-800 text-sm"><i className="fas fa-sync-alt"></i></button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {tickets.length === 0 && <p className="text-center p-4 text-gray-500">No tickets.</p>}
+          {tickets.map(t => (
+            <div
+              key={t.id}
+              onClick={() => setSelectedTicket(t)}
+              className={`p-4 border-b cursor-pointer hover:bg-blue-50 transition-colors ${selectedTicket?.id === t.id ? 'bg-blue-100 border-l-4 border-blue-600' : ''}`}
+            >
+              <div className="flex justify-between mb-1">
+                <span className="font-bold text-gray-800 text-sm truncate w-32">{t.subject}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${t.status === 'RESOLVED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {t.status}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mb-1">{t.userEmail}</p>
+              <p className="text-xs text-gray-400 text-right">{new Date(t.createdAt).toLocaleDateString()}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Edit User</h3>
-            <div className="space-y-3">
-              <div><label className="text-xs font-bold text-gray-500">Name</label><input className="w-full border p-2 rounded" value={editingUser.name} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} /></div>
-              <div><label className="text-xs font-bold text-gray-500">Email</label><input className="w-full border p-2 rounded" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} /></div>
-              <div><label className="text-xs font-bold text-gray-500">Mobile</label><input className="w-full border p-2 rounded" value={editingUser.mobile} onChange={e => setEditingUser({ ...editingUser, mobile: e.target.value })} /></div>
-              <div><label className="text-xs font-bold text-gray-500">Credits</label><input type="number" className="w-full border p-2 rounded" value={editingUser.credits} onChange={e => setEditingUser({ ...editingUser, credits: parseInt(e.target.value) })} /></div>
-              <div>
-                <label className="text-xs font-bold text-gray-500">Plan</label>
-                <select className="w-full border p-2 rounded" value={editingUser.subscriptionPlan} onChange={e => setEditingUser({ ...editingUser, subscriptionPlan: e.target.value as SubscriptionPlan })}>
-                  {Object.values(SubscriptionPlan).map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-gray-500">Role</label>
-                <select className="w-full border p-2 rounded" value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value as UserRole })}>
-                  {Object.values(UserRole).map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-gray-500">Cancel</button>
-              <button onClick={saveUserChanges} className="px-4 py-2 bg-blue-600 text-white rounded font-bold">Save Changes</button>
-            </div>
+      <div className="lg:col-span-2 border rounded-lg p-6 flex flex-col">
+        {!selectedTicket ? (
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            Select a ticket to view details
           </div>
-        </div>
-      )}
+        ) : (
+          <>
+            <div className="mb-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-bold text-gray-800">{selectedTicket.subject}</h3>
+                <span className="text-sm text-gray-500">{new Date(selectedTicket.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg mb-4 text-gray-700 whitespace-pre-wrap">
+                {selectedTicket.message}
+              </div>
+              <p className="text-sm font-bold text-gray-600 mb-1">From: <span className="text-blue-600">{selectedTicket.userEmail}</span></p>
+            </div>
 
-      {/* Create User Modal */}
-      {creatingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Create New User</h3>
-            <div className="space-y-3">
-              <div><label className="text-xs font-bold text-gray-500">Name</label><input className="w-full border p-2 rounded" value={creatingUser.name} onChange={e => setCreatingUser({ ...creatingUser, name: e.target.value })} /></div>
-              <div><label className="text-xs font-bold text-gray-500">Email</label><input className="w-full border p-2 rounded" value={creatingUser.email} onChange={e => setCreatingUser({ ...creatingUser, email: e.target.value })} /></div>
-              <div><label className="text-xs font-bold text-gray-500">Password</label><input className="w-full border p-2 rounded" value={creatingUser.password} onChange={e => setCreatingUser({ ...creatingUser, password: e.target.value })} /></div>
-              <div><label className="text-xs font-bold text-gray-500">Mobile</label><input className="w-full border p-2 rounded" value={creatingUser.mobile} onChange={e => setCreatingUser({ ...creatingUser, mobile: e.target.value })} /></div>
-              <div>
-                <label className="text-xs font-bold text-gray-500">Role</label>
-                <select className="w-full border p-2 rounded" value={creatingUser.role} onChange={e => setCreatingUser({ ...creatingUser, role: e.target.value as UserRole })}>
-                  {Object.values(UserRole).map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
+            <div className="mt-auto border-t pt-4">
+              {selectedTicket.adminReply ? (
+                <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                  <p className="font-bold text-green-800 mb-1"><i className="fas fa-check-circle"></i> Resolved</p>
+                  <p className="text-green-700 text-sm">{selectedTicket.adminReply}</p>
+                </div>
+              ) : (
+                <div>
+                  <label className="font-bold text-gray-700 mb-2 block">Reply & Resolve</label>
+                  <textarea
+                    className="w-full border rounded-lg p-3 h-32 focus:ring-2 focus:ring-blue-500 outline-none mb-3"
+                    placeholder="Type your reply here..."
+                    value={reply}
+                    onChange={e => setReply(e.target.value)}
+                  ></textarea>
+                  <button
+                    onClick={handleReply}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+                  >
+                    Send Reply
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setCreatingUser(null)} className="px-4 py-2 text-gray-500">Cancel</button>
-              <button onClick={saveNewUser} className="px-4 py-2 bg-green-600 text-white rounded font-bold">Create User</button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 };
