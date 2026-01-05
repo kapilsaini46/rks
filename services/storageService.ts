@@ -348,9 +348,10 @@ export const StorageService = {
       const now = new Date();
       const nowIso = now.toISOString();
 
-      // Calculate expiry (30 days from now for ease, or dependent on plan duration)
+      // Calculate expiry based on plan validity
+      const validityDays = PRICING[plan].validityDays || 30;
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 30);
+      expiryDate.setDate(expiryDate.getDate() + validityDays);
 
       const updatedUser: Partial<User> = {
         subscriptionPlan: plan,

@@ -115,7 +115,9 @@ const SubscriptionModal: React.FC<Props> = ({ user, onClose, onSuccess }) => {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="font-bold text-gray-800">{PRICING[plan].label}</div>
-                    <div className="text-sm text-gray-500">{PRICING[plan].papers} Papers</div>
+                    <div className="text-sm text-gray-500">
+                      {PRICING[plan].papers} Papers • {PRICING[plan].validityDays} Days Validity
+                    </div>
                   </div>
                   <div className="text-xl font-bold text-blue-600">₹{PRICING[plan].price}</div>
                 </div>

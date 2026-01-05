@@ -18,10 +18,10 @@ export const CBSE_SUBJECTS: Record<string, string[]> = {
 export const QUESTION_TYPES = Object.values(QuestionType);
 
 export const PRICING = {
-  [SubscriptionPlan.FREE]: { price: 0, papers: 1, label: 'Free Trial' },
-  [SubscriptionPlan.STARTER]: { price: 199, papers: 5, label: 'Starter Plan' },
-  [SubscriptionPlan.PROFESSIONAL]: { price: 399, papers: 12, label: 'Professional Plan' },
-  [SubscriptionPlan.PREMIUM]: { price: 699, papers: 25, label: 'Premium Plan' },
+  [SubscriptionPlan.FREE]: { price: 0, papers: 1, label: 'Free Trial', validityDays: 365 },
+  [SubscriptionPlan.STARTER]: { price: 149, papers: 5, label: 'Starter Plan', validityDays: 30 },
+  [SubscriptionPlan.PROFESSIONAL]: { price: 299, papers: 10, label: 'Professional Plan', validityDays: 60 },
+  [SubscriptionPlan.PREMIUM]: { price: 499, papers: 18, label: 'Premium Plan', validityDays: 90 },
 };
 
 export const UPI_QR_IMAGE = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=mock-merchant@upi&pn=CBSEGenerator&am=0&cu=INR";
