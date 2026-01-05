@@ -27,13 +27,13 @@ export interface User {
   subscriptionPlan: SubscriptionPlan;
   subscriptionStatus: SubscriptionStatus;
   paymentProofUrl?: string;
-  
+
   // Registration details
   schoolName?: string;
   mobile?: string;
   city?: string;
   state?: string;
-  
+
   // Subscription Expiry
   subscriptionExpiryDate?: string; // ISO Date string
 }
@@ -93,7 +93,7 @@ export interface QuestionPaper {
   sections: Section[];
   createdAt: string;
   createdBy: string;
-  
+
   // Visibility flags for soft deletion
   visibleToTeacher: boolean;
   visibleToAdmin: boolean;
@@ -138,4 +138,15 @@ export interface ContentPage {
   title: string;
   content: string;
   lastUpdated: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  userEmail: string;
+  subject: string;
+  message: string;
+  status: 'OPEN' | 'RESOLVED' | 'IN_PROGRESS';
+  adminReply?: string;
+  createdAt: string;
+  updatedAt: string;
 }

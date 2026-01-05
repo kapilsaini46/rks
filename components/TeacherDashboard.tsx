@@ -272,7 +272,7 @@ const TeacherDashboard: React.FC<Props> = ({ user, onLogout }) => {
 
             {showSubModal && <SubscriptionModal user={currentUser} onClose={() => setShowSubModal(false)} onSuccess={() => refreshUserData()} />}
 
-            {/* Content Page Modal */}
+            {/* Content Page / Support Modal */}
             {viewingPage && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
                     <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden">
@@ -282,30 +282,106 @@ const TeacherDashboard: React.FC<Props> = ({ user, onLogout }) => {
                         </div>
 
                         {viewingPage.id === 'contact' ? (
-                            <div className="p-6 overflow-y-auto">
-                                <p className="text-gray-700 mb-4 whitespace-pre-wrap">{viewingPage.content}</p>
-                                <form onSubmit={handleContactSubmit} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Describe your issue or query</label>
-                                        <textarea
-                                            className="w-full border rounded-lg p-3 h-32 focus:ring-2 focus:ring-blue-500 outline-none"
-                                            placeholder="Type your message here..."
-                                            value={contactMessage}
-                                            onChange={(e) => setContactMessage(e.target.value)}
-                                            required
-                                        ></textarea>
-                                    </div>
-                                    <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow">
-                                        Send Message <i className="fas fa-paper-plane ml-2"></i>
-                                    </button>
-                                </form>
-                            </div>
+                            <SupportTicketView userEmail={currentUser.email} />
                         ) : (
                             <div className="p-6 overflow-y-auto whitespace-pre-wrap leading-relaxed text-gray-700">
                                 {viewingPage.content}
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Sub-component for Support Tickets
+const SupportTicketView = ({ userEmail }: { userEmail: string }) => {
+    const [view, setView] = useState<'list' | 'create'>('list');
+    const [tickets, setTickets] = useState<any[]>([]);
+    const [subject, setSubject] = useState('');
+    const [message, setMessage] = useState('');
+
+    const loadTickets = async () => {
+        const t = await StorageService.getTicketsByUser(userEmail);
+        // Sort by date desc
+        t.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTickets(t);
+    };
+
+    useEffect(() => {
+        loadTickets();
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!subject.trim() || !message.trim()) return alert("Please fill all fields.");
+
+        const newTicket = {
+            id: Date.now().toString(),
+            userEmail,
+            subject,
+            message,
+            status: 'OPEN',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        await StorageService.createTicket(newTicket);
+        alert("Ticket support created! Matches our support team will reply soon.");
+        setSubject(''); setMessage('');
+        setView('list');
+        loadTickets();
+    };
+
+    return (
+        <div className="p-6 h-full overflow-hidden flex flex-col">
+            {view === 'list' ? (
+                <>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-bold text-gray-700">My Support Tickets</h3>
+                        <button onClick={() => setView('create')} className="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-blue-700">
+                            + New Ticket
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-3">
+                        {tickets.length === 0 && <p className="text-center text-gray-400 py-8">No tickets found.</p>}
+                        {tickets.map(t => (
+                            <div key={t.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                                <div className="flex justify-between mb-2">
+                                    <span className="font-bold text-gray-800">{t.subject}</span>
+                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${t.status === 'RESOLVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                        {t.status}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{t.message}</p>
+                                {t.adminReply && (
+                                    <div className="bg-blue-50 p-3 rounded text-sm text-blue-800 mt-2">
+                                        <span className="font-bold mr-1"><i className="fas fa-reply"></i> Admin:</span>
+                                        {t.adminReply}
+                                    </div>
+                                )}
+                                <div className="text-xs text-gray-400 mt-2 text-right">
+                                    {new Date(t.createdAt).toLocaleDateString()}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex flex-col h-full">
+                    <button onClick={() => setView('list')} className="mb-4 text-gray-500 self-start text-sm"><i className="fas fa-arrow-left"></i> Back to Tickets</button>
+                    <form onSubmit={handleSubmit} className="space-y-4 flex-1 flex flex-col">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Subject</label>
+                            <input className="w-full border rounded p-2" value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Payment Issue" required />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
+                            <textarea className="w-full border rounded p-2 h-32 resize-none" value={message} onChange={e => setMessage(e.target.value)} placeholder="Describe your issue..." required></textarea>
+                        </div>
+                        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700">Submit Ticket</button>
+                    </form>
                 </div>
             )}
         </div>

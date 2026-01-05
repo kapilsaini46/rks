@@ -427,6 +427,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
           { id: 'patterns', label: 'Sample Patterns' },
           { id: 'curriculum', label: 'Curriculum & Config' },
           { id: 'content', label: 'Website Content' },
+          { id: 'support', label: 'Support Tickets' },
         ].map((tab) => (
           <button
             key={tab.id}
