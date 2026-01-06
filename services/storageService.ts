@@ -292,6 +292,11 @@ export const StorageService = {
     return undefined;
   },
 
+  savePageContent: async (page: any) => {
+    if (isMock) return;
+    await setDoc(doc(db, CONTENT_COL, page.id), page);
+  },
+
   // Helper to just get defaults (for Admin Reset)
   getDefaultContentOrFetch: async (id: string): Promise<ContentPage | undefined> => {
     // Re-using the logic above, but forcing default return if passed a specific flag,

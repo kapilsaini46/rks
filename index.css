@@ -1,3 +1,10 @@
+@font-face {
+    font-family: 'Kruti Dev 010';
+    src: url('https://github.com/TGNYC/Kriti-Dev-to-Unicode/blob/master/Kruti%20Dev%20010%20Regular.ttf?raw=true') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

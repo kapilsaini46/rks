@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storageService';
-import { PaymentRequest, User, QuestionPaper, SubscriptionStatus, UserRole, SubscriptionPlan, ContentPage } from '../types';
+import { PaymentRequest, User, QuestionPaper, SubscriptionStatus, UserRole, SubscriptionPlan, ContentPage, SamplePattern } from '../types';
 import PaperGenerator from './PaperGenerator';
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -276,25 +276,50 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
     if (!patternClass || !patternSubject) return alert("Please select a Class and Subject.");
     if (!patternText.trim() && !patternFile && !syllabusFile) return alert("Please provide sample text or upload a document.");
 
-    await StorageService.saveSamplePattern({
-      id: Date.now().toString(),
-      classNum: patternClass,
-      subject: patternSubject,
-      content: patternText,
-      attachment: patternFile ? {
-        name: patternFile.name,
-        data: patternFile.data,
-        mimeType: patternFile.mimeType
-      } : undefined,
-      syllabusAttachment: syllabusFile ? {
-        name: syllabusFile.name,
-        data: syllabusFile.data,
-        mimeType: syllabusFile.mimeType
-      } : undefined,
-      updatedAt: new Date().toISOString()
-    });
-    setSaveStatus('Pattern & Syllabus saved successfully!');
-    setTimeout(() => setSaveStatus(''), 3000);
+    setSaveStatus('Saving...');
+    try {
+      // Manually construct the document to enforce strict types and prevent "invalid nested entity"
+      // Firestore hates undefined, so we assume values or skip keys
+      const docData: any = {
+        id: Date.now().toString(),
+        classNum: String(patternClass),
+        subject: String(patternSubject),
+        content: String(patternText || ''),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (patternFile && patternFile.data) {
+        docData.attachment = {
+          name: String(patternFile.name || 'sample.pdf'),
+          data: String(patternFile.data), // Ensure it's a primitive string
+          mimeType: String(patternFile.mimeType || 'application/pdf')
+        };
+      }
+
+      if (syllabusFile && syllabusFile.data) {
+        docData.syllabusAttachment = {
+          name: String(syllabusFile.name || 'syllabus.pdf'),
+          data: String(syllabusFile.data), // Ensure it's a primitive string
+          mimeType: String(syllabusFile.mimeType || 'application/pdf')
+        };
+      }
+
+      console.log("Saving Pattern:", docData); // For debugging
+      await StorageService.saveSamplePattern(docData as SamplePattern);
+
+      setSaveStatus('Pattern & Syllabus saved successfully!');
+      setTimeout(() => setSaveStatus(''), 3000);
+
+      // Reset
+      setPatternText('');
+      setPatternFile(null);
+      setSyllabusFile(null);
+
+    } catch (e: any) {
+      console.error("Save Error:", e);
+      setSaveStatus('');
+      alert(`Error saving configuration: ${e.message}`);
+    }
   };
 
   const handleSaveContent = async () => {
@@ -616,7 +641,7 @@ const AdminPanel: React.FC<Props> = ({ user }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Object.keys(papersByCreator).length === 0 && <p className="text-gray-400 col-span-3 text-center py-10">No papers generated yet.</p>}
 
-                {Object.entries(papersByCreator).map(([email, userPapers]) => (
+                {Object.entries(papersByCreator).map(([email, userPapers]: [string, any[]]) => (
                   <div
                     key={email}
                     onClick={() => setSelectedFolderUser(email)}

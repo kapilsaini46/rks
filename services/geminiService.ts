@@ -44,59 +44,55 @@ export const generateQuestionsWithAI = async (
 
   const ai = getAI();
 
-  const systemInstruction = `You are an expert CBSE (Central Board of Secondary Education, India) school teacher and question paper setter. 
-  Create strictly academic, curriculum-aligned questions for Class ${classNum} ${subject}.
+  const systemInstruction = `You are an expert CBSE (Central Board of Secondary Education, India) and NCERT curriculum specialist. 
+  Your task is to create strictly academic, high-quality question papers that adhere to the latest CBSE guidelines.
+  
+  Target Audience: Class ${classNum} Students (${subject}).
   Topic: ${topic}.
   
-  FORMATTING RULES (IMPORTANT):
-  1. STRICTLY use LaTeX formatting for ALL mathematical expressions, equations, and symbols.
-  2. Enclose all LaTeX in single dollar signs ($...$).
-     - Correct: $x^2 + 2x + 1 = 0$
-     - Incorrect: x^2 + 2x + 1 = 0
-     - Correct: $H_2O$
-     - Incorrect: H2O
-  3. For fractions, use $\\frac{a}{b}$.
-  4. For degrees, use $^\\circ$ (e.g. $30^\\circ$).
-  5. Keep it readable and professional.
+  CORE PRINCIPLES:
+  1. STRICT CURRICULUM ADHERENCE: All questions must be within the scope of NCERT textbooks for Class ${classNum}.
+  2. ACADEMIC RIGOR: Questions should test conceptual understanding, application, and critical thinking, not just rote memory.
+  3. DIAGRAMS: If a question requires a diagram (e.g., "Draw the human eye", "Circuit diagram", "Geometry construction"), you MUST provide a description for the diagram in the 'imagePrompt' field.
   
+  FORMATTING RULES:
+  1. STRICTLY use LaTeX for ALL math expressions, wrapped in $...$ (e.g., $x^2 + y^2 = r^2$).
+  2. For chemical formulas, use standard text or LaTeX (e.g., $H_2SO_4$).
+  3. Keep the language formal, clear, and unambiguous.
+
   Return ONLY valid JSON.`;
 
   let promptText = `Generate ${count} "${questionType}" questions.
   Marks per question: ${marks}.
   
-  For MCQs, include 4 options and the correct answer.
-  For "Match the Following" type questions:
-  - Provide a list of 4-5 pairs in the 'matchPairs' field.
-  - 'left' is Column A, 'right' is Column B.
-  - Important: In the generated question, the right column should be shuffled/jumbled so it's a puzzle. 
-  - Provide the correct answer key in the 'answer' field (e.g. A-3, B-1, C-4, D-2).
+  For MCQs: Include 4 distinct options and the correct answer.
+  For Match the Following: Provide 4-5 pairs. The 'right' column in the question should be shuffled. Provide the key in 'answer'.
+  For Assertion-Reason: Follow standard CBSE format (Two statements, 4 standard options).
   
-  For other types, provide a suggested answer key or marking scheme in the 'answer' field.
+  AUTOMATIC DIAGRAMS:
+  If a question implies a visual element (e.g., "Identify the label...", "Draw the structure...", "Find area of figure..."), you MUST set the 'imagePrompt' field with a detailed description of the image needed.
+  Example: "Line diagram of a human heart with main chambers labeled."
   
-  ${styleContext?.text ? `\nSTYLE GUIDE & SCOPE:\n${styleContext.text}` : ''}
+  ${styleContext?.text ? `\nREFERENCE CONTEXT:\n${styleContext.text}` : ''}
 
   Response Format:
   [
     {
-      "text": "Question text or instruction (e.g. 'Match the following items:')",
-      "options": ["Option A", "Option B"], // Only for MCQ
-      "matchPairs": [
-         { "left": "Item A", "right": "Item B (Shuffled)" },
-         { "left": "Item C", "right": "Item D (Shuffled)" }
-      ], // Only for Match Type
-      "answer": "Correct answer string"
+      "text": "Question text...",
+      "options": ["A", "B", "C", "D"], // For MCQ
+      "matchPairs": [{ "left": "...", "right": "..." }], // For Match
+      "answer": "Correct answer or marking scheme",
+      "imagePrompt": "Optional description for AI image generator"
     }
   ]`;
 
   // Specific handling for Assertion-Reason to ensure standard options
   if (questionType === QuestionType.ASSERTION_REASON) {
-    promptText += `\nFor Assertion-Reason questions, ensure the 'text' field follows this exact format:
-      Assertion (A): [assertion statement]
-      Reason (R): [reason statement]
+    promptText += `\nFor Assertion-Reason questions, use this exact format for 'text':
+      Assertion (A): ...
+      Reason (R): ...
       
-      IMPORTANT: Do NOT use markdown bolding (e.g. **Assertion**) in the 'text' field. Keep it plain text.
-      
-      Also, you MUST populate the 'options' field with these exact 4 options:
+      And these exact options:
       (A) Both Assertion (A) and Reason (R) are true and Reason (R) is the correct explanation of Assertion (A).
       (B) Both Assertion (A) and Reason (R) are true but Reason (R) is not the correct explanation of Assertion (A).
       (C) Assertion (A) is true but Reason (R) is false.
@@ -106,7 +102,7 @@ export const generateQuestionsWithAI = async (
   // Build the contents array
   const contents = [];
 
-  // 1. Add Sample Question Paper (if exists)
+  // 1. Add Sample Paper (Style Guide)
   if (styleContext?.attachment) {
     contents.push({
       inlineData: {
@@ -116,7 +112,7 @@ export const generateQuestionsWithAI = async (
     });
   }
 
-  // 2. Add Syllabus/Blueprint (if exists) - AI will use this for scope
+  // 2. Add Syllabus (Scope Guide)
   if (styleContext?.syllabusAttachment) {
     contents.push({
       inlineData: {
@@ -153,7 +149,8 @@ export const generateQuestionsWithAI = async (
                   }
                 }
               },
-              answer: { type: Type.STRING }
+              answer: { type: Type.STRING },
+              imagePrompt: { type: Type.STRING }
             },
             required: ["text", "answer"]
           }
@@ -172,20 +169,39 @@ export const generateQuestionsWithAI = async (
       throw new Error("Failed to parse AI response");
     }
 
-    return parsedData.map((q: any) => ({
-      id: generateId(),
-      type: questionType as QuestionType,
-      text: q.text,
-      marks: marks,
-      options: q.options || [],
-      matchPairs: q.matchPairs || [],
-      answer: q.answer,
-      topic: topic
+    // Process questions and generate images if needed
+    const processedQuestions = await Promise.all(parsedData.map(async (q: any) => {
+      let imageUrl = undefined;
+      let imageWidth = undefined;
+
+      // Automatic Image Generation Trigger
+      if (q.imagePrompt && q.imagePrompt.length > 5) {
+        try {
+          imageUrl = await generateImageForQuestion(q.imagePrompt);
+          imageWidth = 50; // Default width percentage
+        } catch (imgErr) {
+          console.error("Auto image generation failed for:", q.imagePrompt);
+        }
+      }
+
+      return {
+        id: generateId(),
+        type: questionType as QuestionType,
+        text: q.text,
+        marks: marks,
+        options: q.options || [],
+        matchPairs: q.matchPairs || [],
+        answer: q.answer,
+        topic: topic,
+        imageUrl: imageUrl,
+        imageWidth: imageWidth
+      };
     }));
+
+    return processedQuestions;
 
   } catch (error) {
     console.error("AI Generation Error", error);
-    // If the error is network related, maybe fallback, but mostly just rethrow for UI to handle
     throw error;
   }
 };
@@ -198,11 +214,10 @@ export const generateImageForQuestion = async (promptText: string): Promise<stri
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: `Create a clear, educational, black and white line diagram for this question: ${promptText}` }]
+        parts: [{ text: `Create a clear, high-contrast, educational black and white line diagram for a school question paper. Subject: ${promptText}. Do not include text in the image if possible, or keep it minimal.` }]
       },
     });
 
-    // Iterate to find image part
     if (response.candidates?.[0]?.content?.parts) {
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) {
@@ -211,11 +226,11 @@ export const generateImageForQuestion = async (promptText: string): Promise<stri
       }
     }
 
-    // Fallback if model returns text only or fails to generate image
     return `https://placehold.co/400x300?text=Diagram+Placeholder`;
 
   } catch (e) {
     console.error("Image gen failed", e);
+    // Return a visible placeholder so user knows it failed rather than crashing
     return `https://placehold.co/400x300?text=Image+Generation+Error`;
   }
 }
